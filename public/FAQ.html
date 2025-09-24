@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAQ - Sistema Informático Géner.A</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+            min-height: 100vh;
+            color: #2d3748;
+        }
+
+        .header {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo h1 {
+            background: linear-gradient(135deg, #8b5cf6, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 1.75rem;
+            font-weight: bold;
+        }
+
+        .nav-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .admin-panel {
+            background: linear-gradient(135deg, #8b5cf6, #a855f7);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            border: none;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            color: #8b5cf6;
+            font-size: 0.9rem;
+        }
+
+        .breadcrumb a {
+            color: #8b5cf6;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .page-header {
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            background: linear-gradient(135deg, #8b5cf6, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            color: #6b7280;
+            font-size: 1.1rem;
+        }
+
+        .faq-container {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .faq-item {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 16px rgba(139, 92, 246, 0.08);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .faq-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.12);
+        }
+
+        .faq-question {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.02), rgba(168, 85, 247, 0.02));
+            border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+        }
+
+        .faq-question:hover {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(168, 85, 247, 0.05));
+        }
+
+        .faq-question h3 {
+            color: #8b5cf6;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0;
+            flex: 1;
+        }
+
+        .faq-toggle {
+            font-size: 1.5rem;
+            color: #8b5cf6;
+            transition: transform 0.3s ease;
+            user-select: none;
+        }
+
+        .faq-toggle.active {
+            transform: rotate(45deg);
+        }
+
+        .faq-answer {
+            padding: 0 1.5rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .faq-answer.active {
+            padding: 1.5rem;
+            max-height: 500px;
+        }
+
+        .faq-answer p {
+            color: #4b5563;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .search-box {
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 1rem;
+            background: white;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+        }
+
+        .contact-section {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(139, 92, 246, 0.1);
+        }
+
+        .contact-card {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(168, 85, 247, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 16px rgba(139, 92, 246, 0.08);
+        }
+
+        .contact-card h2 {
+            background: linear-gradient(135deg, #8b5cf6, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .contact-card > p {
+            color: #6b7280;
+            margin-bottom: 1.5rem;
+        }
+
+        .contact-form {
+            display: grid;
+            gap: 1.25rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: inherit;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #8b5cf6, #a855f7);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .success-message {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
+            border: 2px solid rgba(16, 185, 129, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .success-content {
+            text-align: center;
+        }
+
+        .success-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .success-content h3 {
+            color: #065f46;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .success-content p {
+            color: #047857;
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .header {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .nav-info {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .page-title {
+                font-size: 2rem;
+            }
+
+            .faq-question h3 {
+                font-size: 1rem;
+            }
+
+            .contact-card {
+                padding: 1.5rem;
+            }
+
+            .contact-card h2 {
+                font-size: 1.3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <h1>Géner.A</h1>
+            <span style="color: #6b7280;">Dashboard</span>
+        </div>
+        <div class="nav-info">
+            <button class="admin-panel">Panel Admin</button>
+            <span>admin@genera.com</span>
+            <span>Cerrar sesión</span>
+        </div>
+    </header>
+
+    <div class="container">
+        <nav class="breadcrumb">
+            <a href="../" onclick="goBack()">
+                ← Página Principal
+            </a>
+        </nav>
+
+        <div class="page-header">
+            <h1 class="page-title">Preguntas Frecuentes</h1>
+            <p class="page-subtitle">Encuentra respuestas a las dudas más comunes sobre el Sistema Informático Géner.A</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" class="search-input" placeholder="Buscar en las preguntas frecuentes..." id="searchInput">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <div class="faq-container" id="faqContainer">
+            <div class="faq-item" data-keywords="dirigido sistema usuarios equipos fiscalizadoras auditoría">
+                <div class="faq-question" onclick="toggleFAQ(this)">
+                    <h3>¿Para quiénes está dirigido el Sistema Informático Géner.A?</h3>
+                    <span class="faq-toggle">+</span>
+                </div>
+                <div class="faq-answer">
+                    <p>El Sistema Informático Géner.A se desarrolló con el objetivo de facilitar la implementación del IMPGAI (Índice de Medición de la Perspectiva de Género en el Ámbito Institucional) y del IMPGPP (Índice de Medición de la Perspectiva de Género en las Políticas Públicas) a los equipos de las entidades fiscalizadoras de la región y a los equipos de auditoría de la Auditoría General de la Nación de la República Argentina.</p>
+                </div>
+            </div>
+
+            <div class="faq-item" data-keywords="diferencia IMPGAI IMPGPP índices institucional políticas públicas">
+                <div class="faq-question" onclick="toggleFAQ(this)">
+                    <h3>¿Cuál es la diferencia entre el IMPGAI y el IMPGPP?</h3>
+                    <span class="faq-toggle">+</span>
+                </div>
+                <div class="faq-answer">
+                    <p>El IMPGAI es el Índice de Medición de la Perspectiva de Género en el Ámbito Institucional; está dirigido a medir el grado de adopción de la perspectiva de género en la gestión institucional de los organismos auditados. Por otra parte, el IMPGPP, Índice de Medición de la Perspectiva de Género en las Políticas Públicas, tiene por objetivo medir la perspectiva de género en las distintas etapas de las políticas públicas.</p>
+                </div>
+            </div>
+
+            <div class="faq-item" data-keywords="índices regionales nacionales países argentina chile colombia bolivia ecuador paraguay uruguay venezuela">
+                <div class="faq-question" onclick="toggleFAQ(this)">
+                    <h3>¿Para quién están dirigidos los índices regionales y los índices nacionales?</h3>
+                    <span class="faq-toggle">+</span>
+                </div>
+                <div class="faq-answer">
+                    <p>Los índices regionales fueron desarrollados en colaboración entre los equipos de las entidades fiscalizadoras de Argentina, Chile, Colombia, Bolivia, Ecuador, Paraguay, Uruguay y Venezuela. Tanto el IMPGAI regional como el IMPGPP regional cuentan con indicadores adecuados a las realidades de los países de la región para que puedan ser analizados por parte de todas las entidades fiscalizadoras. El IMPGAI nacional, por su parte, corresponde al índice aprobado en el ámbito de la EFS argentina, la Auditoría General de la Nación.</p>
+                </div>
+            </div>
+
+            <div class="faq-item" data-keywords="analizar dimensión IMPGAI modalidades aplicación parcial">
+                <div class="faq-question" onclick="toggleFAQ(this)">
+                    <h3>¿Es posible analizar una sola dimensión en el IMPGAI?</h3>
+                    <span class="faq-toggle">+</span>
+                </div>
+                <div class="faq-answer">
+                    <p>Tanto el IMPGAI regional como el IMPGAI nacional tienen dos modalidades de aplicación. La primera modalidad consiste en seleccionar algunas dimensiones (de 1 a 4) que estén vinculadas con el objeto de la auditoría. A su vez, permite introducir la perspectiva de género a nivel institucional en objetos de auditoría donde no es el tema central. La segunda modalidad abarca todas las dimensiones que daría como resultado una auditoría "pura" en perspectiva de género. En este último caso, la evaluación de la perspectiva de género a nivel institucional constituye un objetivo central de la auditoría.</p>
+                </div>
+            </div>
+
+            <div class="faq-item" data-keywords="analizar dimensión IMPGPP parcial etapas diseño implementación evaluación">
+                <div class="faq-question" onclick="toggleFAQ(this)">
+                    <h3>¿Es posible analizar una sola dimensión en el IMPGPP?</h3>
+                    <span class="faq-toggle">+</span>
+                </div>
+                <div class="faq-answer">
+                    <p>No, el IMPGPP no fue diseñado para ser utilizado parcialmente. Esto es así porque analiza las políticas a partir de sus etapas (diseño, implementación y evaluación). En ese sentido, resultaría problemático, por caso, medir la adopción de la perspectiva de género en el diseño de la política auditada pero no en su implementación.</p>
+                </div>
+            </div>
+
+            <div class="faq-item" data-keywords="solicitar acceso ingreso sistema correo electrónico entidad fiscalizadora">
+                <div class="faq-question" onclick="toggleFAQ(this)">
+                    <h3>¿Cómo solicito ingreso al Sistema Informático?</h3>
+                    <span class="faq-toggle">+</span>
+                </div>
+                <div class="faq-answer">
+                    <p>Es necesario solicitar acceso en la página del Sistema Informático Géner.A. Se debe ingresar el correo electrónico oficial, nombre completo, entidad fiscalizadora a la que pertenece, cargo y el motivo de la solicitud.</p>
+                </div>
+            </div>
+
+            <div class="faq-item" data-keywords="olvidé contraseña recuperar nueva password administrador">
+                <div class="faq-question" onclick="toggleFAQ(this)">
+                    <h3>¿Qué pasa si olvidé mi contraseña?</h3>
+                    <span class="faq-toggle">+</span>
+                </div>
+                <div class="faq-answer">
+                    <p>Puede solicitar una nueva contraseña en la misma página que debe utilizar para ingresar al Sistema Informático. Se le generará una nueva contraseña que será enviada por correo electrónico por el administrador de la plataforma.</p>
+                </div>
+            </div>
+
+            <div class="faq-item" data-keywords="descargar informe resultados pdf excel reporte datos">
+                <div class="faq-question" onclick="toggleFAQ(this)">
+                    <h3>¿Cómo descargo el informe de resultados?</h3>
+                    <span class="faq-toggle">+</span>
+                </div>
+                <div class="faq-answer">
+                    <p>Al finalizar con la carga de los resultados de todas las dimensiones se abrirá una página con los resultados donde se podrá encontrar una opción para descargar un informe con los resultados en formato pdf y en formato Excel. Estos documentos podrás servir para reutilizar los datos o para adjuntar los resultados en el informe de auditoría.</p>
+                </div>
+            </div>
+
+            <div class="faq-item" data-keywords="documentación técnica guía metodológica tarjeta acceso documentos">
+                <div class="faq-question" onclick="toggleFAQ(this)">
+                    <h3>¿Cómo accedo a la documentación técnica que debo utilizar?</h3>
+                    <span class="faq-toggle">+</span>
+                </div>
+                <div class="faq-answer">
+                    <p>Recomendamos utilizar la Guía Metodológica correspondiente al Índice que será analizado. Esto se debe a que las guías metodológicas cuentan con información clave para identificar el puntaje que debe seleccionarse en cada caso. Se desarrolló una tarjeta para que los equipos de auditoría puedan acceder a los documentos técnicos necesarios para realizar el proceso de análisis y carga de datos.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="contact-section">
+            <div class="contact-card">
+                <h2>¿No encontraste la respuesta que buscabas?</h2>
+                <p>Envía tu consulta al Equipo Coordinador y te responderemos a la brevedad.</p>
+
+                <form class="contact-form" id="contactForm">
+                    <div class="form-group">
+                        <label for="userName">Nombre completo *</label>
+                        <input type="text" id="userName" name="userName" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="userEmail">Correo electrónico *</label>
+                        <input type="email" id="userEmail" name="userEmail" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="userEntity">Entidad fiscalizadora</label>
+                        <input type="text" id="userEntity" name="userEntity" placeholder="Nombre de tu entidad">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="questionType">Tipo de consulta</label>
+                        <select id="questionType" name="questionType">
+                            <option value="">Selecciona una categoría</option>
+                            <option value="sistema">Problemas técnicos del sistema</option>
+                            <option value="acceso">Solicitud de acceso</option>
+                            <option value="metodologia">Dudas metodológicas</option>
+                            <option value="indices">Consultas sobre índices</option>
+                            <option value="reportes">Generación de reportes</option>
+                            <option value="otros">Otros</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="userQuestion">Tu consulta *</label>
+                        <textarea id="userQuestion" name="userQuestion" rows="5" placeholder="Describe tu consulta con el mayor detalle posible..." required></textarea>
+                    </div>
+
+                    <button type="submit" class="submit-btn">
+                        <span class="btn-text">Enviar consulta</span>
+                        <span class="btn-icon">📧</span>
+                    </button>
+                </form>
+
+                <div class="success-message" id="successMessage" style="display: none;">
+                    <div class="success-content">
+                        <span class="success-icon">✅</span>
+                        <h3>¡Consulta enviada exitosamente!</h3>
+                        <p>Tu consulta ha sido enviada al Equipo Coordinador. Recibirás una respuesta en tu correo electrónico dentro de las próximas 48 horas hábiles.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleFAQ(element) {
+            const answer = element.nextElementSibling;
+            const toggle = element.querySelector('.faq-toggle');
+            const isActive = answer.classList.contains('active');
+
+            // Close all other FAQs
+            document.querySelectorAll('.faq-answer.active').forEach(item => {
+                if (item !== answer) {
+                    item.classList.remove('active');
+                    item.previousElementSibling.querySelector('.faq-toggle').classList.remove('active');
+                }
+            });
+
+            // Toggle current FAQ
+            if (isActive) {
+                answer.classList.remove('active');
+                toggle.classList.remove('active');
+            } else {
+                answer.classList.add('active');
+                toggle.classList.add('active');
+            }
+        }
+
+        function goBack() {
+            // Navigate back to the main page
+            window.location.href = '/';
+        }
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const faqItems = document.querySelectorAll('.faq-item');
+
+            faqItems.forEach(item => {
+                const question = item.querySelector('h3').textContent.toLowerCase();
+                const answer = item.querySelector('.faq-answer p').textContent.toLowerCase();
+                const keywords = item.getAttribute('data-keywords').toLowerCase();
+
+                const isMatch = question.includes(searchTerm) ||
+                               answer.includes(searchTerm) ||
+                               keywords.includes(searchTerm);
+
+                item.style.display = isMatch ? 'block' : 'none';
+            });
+
+            // Show message if no results
+            const visibleItems = Array.from(faqItems).filter(item => item.style.display !== 'none');
+            const container = document.getElementById('faqContainer');
+
+            let noResultsMsg = document.getElementById('noResults');
+            if (visibleItems.length === 0 && searchTerm.length > 0) {
+                if (!noResultsMsg) {
+                    noResultsMsg = document.createElement('div');
+                    noResultsMsg.id = 'noResults';
+                    noResultsMsg.style.textAlign = 'center';
+                    noResultsMsg.style.padding = '2rem';
+                    noResultsMsg.style.color = '#6b7280';
+                    noResultsMsg.innerHTML = '<p>No se encontraron resultados para tu búsqueda.</p>';
+                    container.appendChild(noResultsMsg);
+                }
+                noResultsMsg.style.display = 'block';
+            } else if (noResultsMsg) {
+                noResultsMsg.style.display = 'none';
+            }
+        });
+
+        // Contact form submission
+        document.getElementById('contactForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            // Get form data
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData);
+
+            // Validate required fields
+            if (!data.userName || !data.userEmail || !data.userQuestion) {
+                alert('Por favor, completa todos los campos obligatorios (*)');
+                return;
+            }
+
+            // Simple email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(data.userEmail)) {
+                alert('Por favor, ingresa un correo electrónico válido');
+                return;
+            }
+
+            // Simulate form submission
+            const submitBtn = this.querySelector('.submit-btn');
+            const originalText = submitBtn.querySelector('.btn-text').textContent;
+
+            // Change button state
+            submitBtn.disabled = true;
+            submitBtn.querySelector('.btn-text').textContent = 'Enviando...';
+            submitBtn.querySelector('.btn-icon').textContent = '⏳';
+
+            // Simulate API call
+            setTimeout(() => {
+                // Hide form and show success message
+                this.style.display = 'none';
+                document.getElementById('successMessage').style.display = 'block';
+
+                // In a real implementation, you would send this data to your backend
+                console.log('Form submitted:', data);
+            }, 1500);
+        });
+    </script>
+</body>
+</html>
+
