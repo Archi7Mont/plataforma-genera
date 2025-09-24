@@ -82,33 +82,26 @@ export default function RegisterPage() {
         return
       }
 
-      // Check if user already exists
-      const existingUsers = localStorage.getItem("genera_all_users")
-      const users = existingUsers ? JSON.parse(existingUsers) : []
-      
-      const userExists = users.find((u: any) => u.email === formData.email)
-      if (userExists) {
-        setError("Ya existe una solicitud para este email. Contacte al administrador si no ha recibido respuesta.")
+      // Check if user already exists and add to API
+      try {
+        const response = await fetch('/api/users/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: formData.email })
+        })
+        
+        const data = await response.json()
+        if (!data.success) {
+          setError("Ya existe una solicitud para este email. Contacte al administrador si no ha recibido respuesta.")
+          setIsLoading(false)
+          return
+        }
+      } catch (error) {
+        console.error('Error checking/adding user:', error)
+        setError("Error al procesar la solicitud. Intente nuevamente.")
         setIsLoading(false)
         return
       }
-
-      // Create new user request
-      const newUser = {
-        id: Date.now().toString(),
-        email: formData.email,
-        fullName: formData.fullName,
-        organization: formData.organization,
-        position: formData.position,
-        reason: formData.reason,
-        status: "pending",
-        loginTime: new Date().toISOString(),
-        requestedAt: new Date().toISOString()
-      }
-
-      // Save user request
-      const updatedUsers = [...users, newUser]
-      localStorage.setItem("genera_all_users", JSON.stringify(updatedUsers))
 
       setSuccess(true)
       setIsLoading(false)

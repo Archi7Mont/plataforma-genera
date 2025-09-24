@@ -89,31 +89,15 @@ export default function AdminPage() {
     checkStorageHealth()
   }, [])
 
-  const loadUsers = () => {
-    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-      const storedUsers = localStorage.getItem("genera_all_users")
-      if (storedUsers) {
-        setUsers(JSON.parse(storedUsers))
-      } else {
-        const demoUsers: User[] = [
-          {
-            id: "1",
-            email: "usuario1@ejemplo.com",
-            status: "pending",
-            loginTime: new Date().toISOString(),
-          },
-          {
-            id: "2",
-            email: "usuario2@ejemplo.com",
-            status: "approved",
-            loginTime: new Date(Date.now() - 86400000).toISOString(),
-            approvedBy: "admin@genera.com",
-            approvedAt: new Date(Date.now() - 86400000).toISOString(),
-          },
-        ]
-        setUsers(demoUsers)
-        localStorage.setItem("genera_all_users", JSON.stringify(demoUsers))
+  const loadUsers = async () => {
+    try {
+      const response = await fetch('/api/users')
+      const data = await response.json()
+      if (data.users) {
+        setUsers(data.users)
       }
+    } catch (error) {
+      console.error('Error loading users:', error)
     }
   }
 
@@ -142,79 +126,104 @@ export default function AdminPage() {
     loadPasswords()
   }
 
-  const approveUser = (userId: string) => {
-    const updatedUsers = users.map(user => 
-      user.id === userId 
-        ? { 
-            ...user, 
-            status: 'approved' as const,
-            approvedBy: currentUser?.email || 'admin',
-            approvedAt: new Date().toISOString()
-          }
-        : user
-    )
-    setUsers(updatedUsers)
-    localStorage.setItem("genera_all_users", JSON.stringify(updatedUsers))
+  const approveUser = async (userId: string) => {
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'approve',
+          userId,
+          approvedBy: currentUser?.email || 'admin'
+        })
+      })
+      const data = await response.json()
+      if (data.success) {
+        setUsers(data.users)
+      }
+    } catch (error) {
+      console.error('Error approving user:', error)
+    }
   }
 
-  const rejectUser = (userId: string) => {
-    const updatedUsers = users.map(user => 
-      user.id === userId 
-        ? { 
-            ...user, 
-            status: 'rejected' as const,
-            rejectedBy: currentUser?.email || 'admin',
-            rejectedAt: new Date().toISOString()
-          }
-        : user
-    )
-    setUsers(updatedUsers)
-    localStorage.setItem("genera_all_users", JSON.stringify(updatedUsers))
+  const rejectUser = async (userId: string) => {
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'reject',
+          userId,
+          rejectedBy: currentUser?.email || 'admin'
+        })
+      })
+      const data = await response.json()
+      if (data.success) {
+        setUsers(data.users)
+      }
+    } catch (error) {
+      console.error('Error rejecting user:', error)
+    }
   }
 
-  const blockUser = (userId: string) => {
-    const updatedUsers = users.map(user => 
-      user.id === userId 
-        ? { 
-            ...user, 
-            status: 'blocked' as const,
-            blockedBy: currentUser?.email || 'admin',
-            blockedAt: new Date().toISOString()
-          }
-        : user
-    )
-    setUsers(updatedUsers)
-    localStorage.setItem("genera_all_users", JSON.stringify(updatedUsers))
+  const blockUser = async (userId: string) => {
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'block',
+          userId,
+          blockedBy: currentUser?.email || 'admin'
+        })
+      })
+      const data = await response.json()
+      if (data.success) {
+        setUsers(data.users)
+      }
+    } catch (error) {
+      console.error('Error blocking user:', error)
+    }
   }
 
-  const unblockUser = (userId: string) => {
-    const updatedUsers = users.map(user => 
-      user.id === userId 
-        ? { 
-            ...user, 
-            status: 'approved' as const,
-            unblockedBy: currentUser?.email || 'admin',
-            unblockedAt: new Date().toISOString()
-          }
-        : user
-    )
-    setUsers(updatedUsers)
-    localStorage.setItem("genera_all_users", JSON.stringify(updatedUsers))
+  const unblockUser = async (userId: string) => {
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'unblock',
+          userId,
+          unblockedBy: currentUser?.email || 'admin'
+        })
+      })
+      const data = await response.json()
+      if (data.success) {
+        setUsers(data.users)
+      }
+    } catch (error) {
+      console.error('Error unblocking user:', error)
+    }
   }
 
-  const deleteUser = (userId: string) => {
-    const updatedUsers = users.map(user => 
-      user.id === userId 
-        ? { 
-            ...user, 
-            status: 'deleted' as const,
-            deletedBy: currentUser?.email || 'admin',
-            deletedAt: new Date().toISOString()
-          }
-        : user
-    )
-    setUsers(updatedUsers)
-    localStorage.setItem("genera_all_users", JSON.stringify(updatedUsers))
+  const deleteUser = async (userId: string) => {
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete',
+          userId,
+          deletedBy: currentUser?.email || 'admin'
+        })
+      })
+      const data = await response.json()
+      if (data.success) {
+        setUsers(data.users)
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error)
+    }
   }
 
   const handleLogout = () => {
