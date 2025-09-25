@@ -12,5 +12,13 @@
     "loginTime": "2024-09-23T15:52:00.000Z",
     "approvedBy": "admin@genera.com",
     "approvedAt": "2024-09-23T15:52:00.000Z"
+  },
+  {
+    "id": "1758810502877",
+    "email": "moviedo@agn.gov.ar",
+    "status": "approved",
+    "loginTime": "2025-09-25T14:28:22.877Z",
+    "approvededBy": "admin@genera.com",
+    "approvededAt": "2025-09-25T14:28:43.718Z"
   }
 ]

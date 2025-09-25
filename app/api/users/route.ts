@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { readUsers, updateUserStatus, addUser } from '@/lib/users-db'
 
+// Force dynamic rendering for this API route
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const users = readUsers()

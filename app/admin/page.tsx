@@ -34,6 +34,10 @@ export default function AdminPage() {
   const [passwords, setPasswords] = useState<any[]>([])
   const [generatedPassword, setGeneratedPassword] = useState<{email: string, password: string} | null>(null)
   const [storageHealth, setStorageHealth] = useState<any>(null)
+  const [securityDashboard, setSecurityDashboard] = useState<any>(null)
+  const [loginAttempts, setLoginAttempts] = useState<any[]>([])
+  const [securityEvents, setSecurityEvents] = useState<any[]>([])
+  const [activeTab, setActiveTab] = useState<'users' | 'security' | 'passwords'>('users')
   const router = useRouter()
 
   useEffect(() => {
@@ -87,6 +91,9 @@ export default function AdminPage() {
     loadUsers()
     loadPasswords()
     checkStorageHealth()
+    loadSecurityDashboard()
+    loadLoginAttempts()
+    loadSecurityEvents()
   }, [])
 
   const loadUsers = async () => {
@@ -109,6 +116,42 @@ export default function AdminPage() {
     const health = checkLocalStorageHealth()
     setStorageHealth(health)
     console.log('Storage Health Check:', health)
+  }
+
+  const loadSecurityDashboard = async () => {
+    try {
+      const response = await fetch('/api/security/dashboard?type=overview')
+      const data = await response.json()
+      if (data.success) {
+        setSecurityDashboard(data.data)
+      }
+    } catch (error) {
+      console.error('Error loading security dashboard:', error)
+    }
+  }
+
+  const loadLoginAttempts = async () => {
+    try {
+      const response = await fetch('/api/security/dashboard?type=login-attempts&limit=20')
+      const data = await response.json()
+      if (data.success) {
+        setLoginAttempts(data.data)
+      }
+    } catch (error) {
+      console.error('Error loading login attempts:', error)
+    }
+  }
+
+  const loadSecurityEvents = async () => {
+    try {
+      const response = await fetch('/api/security/dashboard?type=security-events&limit=20')
+      const data = await response.json()
+      if (data.success) {
+        setSecurityEvents(data.data)
+      }
+    } catch (error) {
+      console.error('Error loading security events:', error)
+    }
   }
 
   const generatePasswordForUser = async (email: string) => {
@@ -303,6 +346,44 @@ export default function AdminPage() {
           </Card>
         </div>
 
+        {/* Navigation Tabs */}
+        <div className="mb-6">
+          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'users'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Gestión de Usuarios
+            </button>
+            <button
+              onClick={() => setActiveTab('security')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'security'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Monitoreo de Seguridad
+            </button>
+            <button
+              onClick={() => setActiveTab('passwords')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'passwords'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Contraseñas
+            </button>
+          </div>
+        </div>
+
+        {/* Users Management Tab */}
+        {activeTab === 'users' && (
         <Card className="bg-white shadow-lg border-0">
           <CardHeader>
             <CardTitle>Gestión de Usuarios</CardTitle>
@@ -494,6 +575,169 @@ export default function AdminPage() {
             </div>
           </CardContent>
         </Card>
+        )}
+
+        {/* Security Monitoring Tab */}
+        {activeTab === 'security' && (
+        <div className="space-y-6">
+          {/* Security Overview */}
+          {securityDashboard && (
+            <Card className="bg-white shadow-lg border-0">
+              <CardHeader>
+                <CardTitle>Resumen de Seguridad</CardTitle>
+                <CardDescription>Métricas de seguridad en tiempo real</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h3 className="text-2xl font-bold text-blue-600">{securityDashboard.totalUsers}</h3>
+                    <p className="text-sm text-blue-800">Total Usuarios</p>
+                  </div>
+                  <div className="bg-yellow-50 p-4 rounded-lg">
+                    <h3 className="text-2xl font-bold text-yellow-600">{securityDashboard.pendingUsers}</h3>
+                    <p className="text-sm text-yellow-800">Pendientes</p>
+                  </div>
+                  <div className="bg-red-50 p-4 rounded-lg">
+                    <h3 className="text-2xl font-bold text-red-600">{securityDashboard.failedLoginAttempts}</h3>
+                    <p className="text-sm text-red-800">Intentos Fallidos (24h)</p>
+                  </div>
+                  <div className="bg-orange-50 p-4 rounded-lg">
+                    <h3 className="text-2xl font-bold text-orange-600">{securityDashboard.securityEvents}</h3>
+                    <p className="text-sm text-orange-800">Eventos de Seguridad</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Recent Login Attempts */}
+          <Card className="bg-white shadow-lg border-0">
+            <CardHeader>
+              <CardTitle>Intentos de Inicio de Sesión Recientes</CardTitle>
+              <CardDescription>Últimos 20 intentos de autenticación</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loginAttempts.length > 0 ? (
+                <div className="space-y-2">
+                  {loginAttempts.map((attempt) => (
+                    <div key={attempt.id} className={`p-3 rounded-lg border ${
+                      attempt.success 
+                        ? 'bg-green-50 border-green-200' 
+                        : 'bg-red-50 border-red-200'
+                    }`}>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium">{attempt.email}</p>
+                          <p className="text-sm text-gray-600">
+                            {attempt.success ? 'Éxito' : `Fallido: ${attempt.failureReason}`}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            IP: {attempt.ipAddress} • {new Date(attempt.attemptedAt).toLocaleString()}
+                          </p>
+                        </div>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          attempt.success 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {attempt.success ? 'Éxito' : 'Fallido'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-4">No hay intentos de inicio de sesión registrados</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Security Events */}
+          <Card className="bg-white shadow-lg border-0">
+            <CardHeader>
+              <CardTitle>Eventos de Seguridad</CardTitle>
+              <CardDescription>Actividad de seguridad del sistema</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {securityEvents.length > 0 ? (
+                <div className="space-y-2">
+                  {securityEvents.map((event) => (
+                    <div key={event.id} className={`p-3 rounded-lg border ${
+                      event.level === 'critical' ? 'bg-red-50 border-red-200' :
+                      event.level === 'error' ? 'bg-red-50 border-red-200' :
+                      event.level === 'warning' ? 'bg-yellow-50 border-yellow-200' :
+                      'bg-blue-50 border-blue-200'
+                    }`}>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium">{event.message}</p>
+                          <p className="text-sm text-gray-600">
+                            {event.type} • {event.level}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(event.timestamp).toLocaleString()}
+                          </p>
+                        </div>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          event.level === 'critical' ? 'bg-red-100 text-red-800' :
+                          event.level === 'error' ? 'bg-red-100 text-red-800' :
+                          event.level === 'warning' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {event.level}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-4">No hay eventos de seguridad registrados</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+        )}
+
+        {/* Passwords Tab */}
+        {activeTab === 'passwords' && (
+        <Card className="bg-white shadow-lg border-0">
+          <CardHeader>
+            <CardTitle>Gestión de Contraseñas</CardTitle>
+            <CardDescription>Contraseñas generadas para usuarios</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {passwords.length > 0 ? (
+              <div className="space-y-3">
+                {passwords.map((passwordInfo) => (
+                  <div key={passwordInfo.email} className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">{passwordInfo.email}</p>
+                      <p className="text-sm text-gray-600">
+                        Generada: {new Date(passwordInfo.generatedAt).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-sm bg-white px-3 py-1 rounded border">
+                        {passwordInfo.plainPassword || 'Contraseña no disponible'}
+                      </span>
+                      <Button 
+                        onClick={() => deletePassword(passwordInfo.email)} 
+                        variant="outline" 
+                        size="sm"
+                        className="text-red-600 hover:bg-red-50"
+                      >
+                        Eliminar
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-8">No hay contraseñas generadas</p>
+            )}
+          </CardContent>
+        </Card>
+        )}
 
         <NavigationButtons previousPage={{ href: "/dashboard", label: "Dashboard" }} />
       </main>
