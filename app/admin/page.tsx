@@ -7,24 +7,32 @@ import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
 import { NavigationButtons } from "@/components/navigation-buttons"
 import { Key } from "lucide-react"
-import { generateAndSavePassword, getStoredPasswordHashes, deletePasswordHash } from "@/lib/passwordStorage"
+// Password management is now handled via API endpoints
 import { checkLocalStorageHealth } from "@/utils/passwordUtils"
 
 interface User {
   id: string
   email: string
+  fullName: string
+  organization: string
+  position: string
   status: "pending" | "approved" | "rejected" | "blocked" | "deleted"
-  loginTime: string
-  approvedBy?: string
-  approvedAt?: string
-  rejectedBy?: string
-  rejectedAt?: string
-  blockedBy?: string
-  blockedAt?: string
-  unblockedBy?: string
-  unblockedAt?: string
-  deletedBy?: string
-  deletedAt?: string
+  role: "admin" | "user"
+  passwordHash: string | null
+  createdAt: string
+  lastLoginAt: string | null
+  loginCount: number
+  isActive: boolean
+  approvedBy?: string | null
+  approvedAt?: string | null
+  rejectedBy?: string | null
+  rejectedAt?: string | null
+  blockedBy?: string | null
+  blockedAt?: string | null
+  unblockedBy?: string | null
+  unblockedAt?: string | null
+  deletedBy?: string | null
+  deletedAt?: string | null
 }
 
 export default function AdminPage() {
@@ -98,18 +106,35 @@ export default function AdminPage() {
 
   const loadUsers = async () => {
     try {
+      console.log('Loading users from API...')
       const response = await fetch('/api/users')
       const data = await response.json()
-      if (data.users) {
-        setUsers(data.users)
+      console.log('API Response:', data)
+      if (Array.isArray(data)) {
+        setUsers(data)
+        console.log('Users loaded:', data.length)
+      } else {
+        console.log('No users in response')
+        setUsers([])
       }
     } catch (error) {
       console.error('Error loading users:', error)
+      setUsers([])
     }
   }
 
   const loadPasswords = () => {
-    setPasswords(getStoredPasswordHashes())
+    // Read transient generated passwords from API
+    fetch('/api/users/passwords')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.success && Array.isArray(data.passwords)) {
+          setPasswords(data.passwords)
+        } else {
+          setPasswords([])
+        }
+      })
+      .catch(() => setPasswords([]))
   }
 
   const checkStorageHealth = () => {
@@ -156,17 +181,37 @@ export default function AdminPage() {
 
   const generatePasswordForUser = async (email: string) => {
     try {
-      const password = await generateAndSavePassword(email, currentUser?.email || 'admin', true)
-      loadPasswords()
-      setGeneratedPassword({ email, password })
+      const response = await fetch('/api/users/generate-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        setGeneratedPassword({ email: result.email, password: result.password })
+        loadUsers() // Refresh users to show updated password hash
+        loadPasswords() // Refresh password display
+      } else {
+        console.error('Error generating password:', result.error)
+        alert('Error generating password: ' + result.error)
+      }
     } catch (error) {
       console.error('Error generating password:', error)
+      alert('Error generating password: ' + (error as Error).message)
     }
   }
 
   const deletePassword = (email: string) => {
-    deletePasswordHash(email)
-    loadPasswords()
+    fetch('/api/users/passwords', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    })
+      .then(res => res.json())
+      .then(() => loadPasswords())
+      .catch(() => loadPasswords())
   }
 
   const approveUser = async (userId: string) => {
@@ -328,57 +373,117 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {passwords.length > 0 && (
-                <div className="mt-4">
-                  <h3 className="text-lg font-semibold mb-2">Contraseñas Generadas</h3>
-                  {passwords.map((passwordInfo) => (
-                    <div key={passwordInfo.email} className="flex items-center justify-between p-2 bg-gray-100 rounded mb-2">
-                      <span>{passwordInfo.email}</span>
-                      <span className="font-mono text-sm">{passwordInfo.plainPassword || 'Contraseña no disponible'}</span>
-                      <Button onClick={() => deletePassword(passwordInfo.email)} variant="outline" size="sm">
-                        Eliminar
-                      </Button>
+              {/* Show generated password if available */}
+              {generatedPassword && (
+                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded">
+                  <h3 className="text-lg font-semibold mb-2 text-green-800">Contraseña Generada</h3>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{generatedPassword.email}</p>
+                      <p className="font-mono text-sm bg-white p-2 rounded border">{generatedPassword.password}</p>
+                    </div>
+                    <Button 
+                      onClick={() => setGeneratedPassword(null)} 
+                      variant="outline" 
+                      size="sm"
+                      className="text-red-600 hover:bg-red-50"
+                    >
+                      Cerrar
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Show all users with their password status */}
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold mb-4">Estado de Contraseñas de Usuarios</h3>
+                <div className="space-y-2">
+                  {users && Array.isArray(users) && users.map((user) => (
+                    <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded border">
+                      <div className="flex-1">
+                        <p className="font-medium">{user.email}</p>
+                        <p className="text-sm text-gray-600">
+                          Estado: {user.status} | 
+                          Contraseña: {user.passwordHash ? 'Configurada' : 'No configurada'}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        {!user.passwordHash && (
+                          <Button
+                            onClick={() => generatePasswordForUser(user.email)}
+                            className="bg-purple-600 hover:bg-purple-700 text-white"
+                            size="sm"
+                          >
+                            Generar Contraseña
+                          </Button>
+                        )}
+                        {user.passwordHash && (
+                          <Button
+                            onClick={() => generatePasswordForUser(user.email)}
+                            variant="outline"
+                            className="border-purple-300 text-purple-600 hover:bg-purple-50"
+                            size="sm"
+                          >
+                            Regenerar
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
-              )}
+              </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Navigation Tabs */}
         <div className="mb-6">
-          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
-            <button
-              onClick={() => setActiveTab('users')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'users'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
+          <div className="flex justify-between items-center">
+            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === 'users'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Gestión de Usuarios
+              </button>
+              <button
+                onClick={() => setActiveTab('security')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === 'security'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Monitoreo de Seguridad
+              </button>
+              <button
+                onClick={() => setActiveTab('passwords')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === 'passwords'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Contraseñas
+              </button>
+            </div>
+            <Button
+              onClick={() => {
+                loadUsers()
+                loadSecurityDashboard()
+                loadLoginAttempts()
+                loadSecurityEvents()
+              }}
+              variant="outline"
+              size="sm"
+              className="text-blue-600 hover:bg-blue-50"
             >
-              Gestión de Usuarios
-            </button>
-            <button
-              onClick={() => setActiveTab('security')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'security'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Monitoreo de Seguridad
-            </button>
-            <button
-              onClick={() => setActiveTab('passwords')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'passwords'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Contraseñas
-            </button>
+              🔄 Actualizar
+            </Button>
           </div>
         </div>
 
@@ -388,19 +493,46 @@ export default function AdminPage() {
           <CardHeader>
             <CardTitle>Gestión de Usuarios</CardTitle>
             <CardDescription>Administre usuarios registrados, contraseñas y permisos</CardDescription>
+            <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-600">
+                <strong>Total usuarios:</strong> {Array.isArray(users) ? users.length : 0} | 
+                <strong> Pendientes:</strong> {Array.isArray(users) ? users.filter(u => u.status === 'pending').length : 0} | 
+                <strong> Aprobados:</strong> {Array.isArray(users) ? users.filter(u => u.status === 'approved').length : 0}
+              </p>
+              <div className="mt-2">
+                <Button
+                  onClick={async () => {
+                    try {
+                      const response = await fetch('/api/test-users')
+                      const data = await response.json()
+                      console.log('Test API Response:', data)
+                      alert(`Test API: ${data.count} users found. Check console for details.`)
+                    } catch (error) {
+                      console.error('Test API Error:', error)
+                      alert('Test API Error: ' + (error as Error).message)
+                    }
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                >
+                  🧪 Test API
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
               {/* Pending Users */}
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-gray-800">Usuarios Pendientes de Aprobación</h3>
-                {users.filter(user => user.status === 'pending').length > 0 ? (
+                {users && Array.isArray(users) && users.filter(user => user.status === 'pending').length > 0 ? (
                   <div className="space-y-3">
-                    {users.filter(user => user.status === 'pending').map((user) => (
+                    {users && Array.isArray(users) && users.filter(user => user.status === 'pending').map((user) => (
                       <div key={user.id} className="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{user.email}</p>
-                          <p className="text-sm text-gray-600">Registrado: {new Date(user.loginTime).toLocaleDateString()}</p>
+                        <p className="text-sm text-gray-600">Registrado: {new Date(user.createdAt).toLocaleDateString()}</p>
                         </div>
                         <div className="flex gap-2">
                           <Button
@@ -430,9 +562,9 @@ export default function AdminPage() {
               {/* Approved Users */}
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-gray-800">Usuarios Aprobados</h3>
-                {users.filter(user => user.status === 'approved').length > 0 ? (
+                {users && Array.isArray(users) && users.filter(user => user.status === 'approved').length > 0 ? (
                   <div className="space-y-3">
-                    {users.filter(user => user.status === 'approved').map((user) => (
+                    {users && Array.isArray(users) && users.filter(user => user.status === 'approved').map((user) => (
                       <div key={user.id} className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{user.email}</p>
@@ -476,9 +608,9 @@ export default function AdminPage() {
               {/* Blocked Users */}
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-gray-800">Usuarios Bloqueados</h3>
-                {users.filter(user => user.status === 'blocked').length > 0 ? (
+                {users && Array.isArray(users) && users.filter(user => user.status === 'blocked').length > 0 ? (
                   <div className="space-y-3">
-                    {users.filter(user => user.status === 'blocked').map((user) => (
+                    {users && Array.isArray(users) && users.filter(user => user.status === 'blocked').map((user) => (
                       <div key={user.id} className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-lg">
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{user.email}</p>
@@ -514,9 +646,9 @@ export default function AdminPage() {
               {/* Rejected Users */}
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-gray-800">Usuarios Rechazados</h3>
-                {users.filter(user => user.status === 'rejected').length > 0 ? (
+                {users && Array.isArray(users) && users.filter(user => user.status === 'rejected').length > 0 ? (
                   <div className="space-y-3">
-                    {users.filter(user => user.status === 'rejected').map((user) => (
+                    {users && Array.isArray(users) && users.filter(user => user.status === 'rejected').map((user) => (
                       <div key={user.id} className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{user.email}</p>
@@ -552,9 +684,9 @@ export default function AdminPage() {
               {/* Deleted Users */}
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-gray-800">Usuarios Eliminados</h3>
-                {users.filter(user => user.status === 'deleted').length > 0 ? (
+                {users && Array.isArray(users) && users.filter(user => user.status === 'deleted').length > 0 ? (
                   <div className="space-y-3">
-                    {users.filter(user => user.status === 'deleted').map((user) => (
+                    {users && Array.isArray(users) && users.filter(user => user.status === 'deleted').map((user) => (
                       <div key={user.id} className="flex items-center justify-between p-4 bg-gray-100 border border-gray-300 rounded-lg">
                         <div className="flex-1">
                           <p className="font-medium text-gray-500 line-through">{user.email}</p>
@@ -617,9 +749,9 @@ export default function AdminPage() {
               <CardDescription>Últimos 20 intentos de autenticación</CardDescription>
             </CardHeader>
             <CardContent>
-              {loginAttempts.length > 0 ? (
+              {loginAttempts && Array.isArray(loginAttempts) && loginAttempts.length > 0 ? (
                 <div className="space-y-2">
-                  {loginAttempts.map((attempt) => (
+                  {loginAttempts && Array.isArray(loginAttempts) && loginAttempts.map((attempt) => (
                     <div key={attempt.id} className={`p-3 rounded-lg border ${
                       attempt.success 
                         ? 'bg-green-50 border-green-200' 
@@ -659,9 +791,9 @@ export default function AdminPage() {
               <CardDescription>Actividad de seguridad del sistema</CardDescription>
             </CardHeader>
             <CardContent>
-              {securityEvents.length > 0 ? (
+              {securityEvents && Array.isArray(securityEvents) && securityEvents.length > 0 ? (
                 <div className="space-y-2">
-                  {securityEvents.map((event) => (
+                  {securityEvents && Array.isArray(securityEvents) && securityEvents.map((event) => (
                     <div key={event.id} className={`p-3 rounded-lg border ${
                       event.level === 'critical' ? 'bg-red-50 border-red-200' :
                       event.level === 'error' ? 'bg-red-50 border-red-200' :
@@ -706,9 +838,9 @@ export default function AdminPage() {
             <CardDescription>Contraseñas generadas para usuarios</CardDescription>
           </CardHeader>
           <CardContent>
-            {passwords.length > 0 ? (
+            {passwords && Array.isArray(passwords) && passwords.length > 0 ? (
               <div className="space-y-3">
-                {passwords.map((passwordInfo) => (
+                {passwords && Array.isArray(passwords) && passwords.map((passwordInfo) => (
                   <div key={passwordInfo.email} className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
                     <div className="flex-1">
                       <p className="font-medium text-gray-900">{passwordInfo.email}</p>

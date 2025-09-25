@@ -147,7 +147,7 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Link href="/indices/impgai-regional/configuracion-simple">
-            <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer border-0 shadow-lg hover:scale-105 hover:border-purple-200 bg-white">
+            <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer border-0 shadow-lg hover:scale-105 hover:border-purple-200 bg-white h-44 md:h-48 overflow-hidden">
               <CardHeader>
                 <CardTitle className="text-lg text-purple-600">IMPGAI Regional</CardTitle>
                 <CardDescription>Índice de Medición de la Perspectiva de Género en el Ámbito Institucional- Versión Regional</CardDescription>
@@ -156,7 +156,7 @@ export default function DashboardPage() {
           </Link>
 
           <Link href="/indices/impgai-nacional">
-            <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer border-0 shadow-lg hover:scale-105 hover:border-purple-200 bg-white">
+            <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer border-0 shadow-lg hover:scale-105 hover:border-purple-200 bg-white h-44 md:h-48 overflow-hidden">
               <CardHeader>
                 <CardTitle className="text-lg text-purple-600">IMPGAI Nacional</CardTitle>
                 <CardDescription>Índice de Medición de la Perspectiva de Género en el Ámbito Institucional - Versión Nacional</CardDescription>
@@ -165,7 +165,7 @@ export default function DashboardPage() {
           </Link>
 
           <Link href="/indices/impgpp-regional/configuracion">
-            <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer border-0 shadow-lg hover:scale-105 hover:border-purple-200 bg-white">
+            <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer border-0 shadow-lg hover:scale-105 hover:border-purple-200 bg-white h-44 md:h-48 overflow-hidden">
               <CardHeader>
                 <CardTitle className="text-lg text-purple-600">IMPGPP Regional</CardTitle>
                 <CardDescription>Índice de Medición de la Perspectiva de Género en las Políticas Públicas - Versión Regional</CardDescription>
@@ -174,7 +174,7 @@ export default function DashboardPage() {
           </Link>
 
           <Link href="/indices/impgpp-nacional">
-            <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer border-0 shadow-lg hover:scale-105 hover:border-purple-200 bg-white">
+            <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer border-0 shadow-lg hover:scale-105 hover:border-purple-200 bg-white h-44 md:h-48 overflow-hidden">
               <CardHeader>
                 <CardTitle className="text-lg text-purple-600">IMPGPP Nacional</CardTitle>
                 <CardDescription>Índice de Medición de la Perspectiva de Género en las Políticas Públicas - Versión Nacional</CardDescription>
@@ -183,7 +183,7 @@ export default function DashboardPage() {
           </Link>
 
           <Link href="/FAQ.html">
-            <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer border-0 shadow-lg hover:scale-105 hover:border-purple-200 bg-white">
+            <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer border-0 shadow-lg hover:scale-105 hover:border-purple-200 bg-white h-44 md:h-48 overflow-hidden">
               <CardHeader>
                 <CardTitle className="text-lg text-purple-600">FAQ</CardTitle>
                 <CardDescription>Preguntas frecuentes sobre la metodología</CardDescription>

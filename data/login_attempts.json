@@ -1,1 +1,124 @@
-[]
+[
+  {
+    "id": "1758818121515",
+    "email": "admin@genera.com",
+    "ipAddress": "::1",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0",
+    "success": true,
+    "attemptedAt": "2025-09-25T16:35:21.515Z",
+    "userId": "1"
+  },
+  {
+    "id": "1758818218608",
+    "email": "moviedo@agn.gov.ar",
+    "ipAddress": "::1",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0",
+    "success": false,
+    "failureReason": "Account inactive",
+    "attemptedAt": "2025-09-25T16:36:58.608Z",
+    "userId": "1758818104538"
+  },
+  {
+    "id": "1758818435329",
+    "email": "moviedo@agn.gov.ar",
+    "ipAddress": "::1",
+    "userAgent": "node",
+    "success": false,
+    "failureReason": "Invalid password",
+    "attemptedAt": "2025-09-25T16:40:35.329Z",
+    "userId": "1758818104538"
+  },
+  {
+    "id": "1758818435778",
+    "email": "admin@genera.com",
+    "ipAddress": "::1",
+    "userAgent": "node",
+    "success": true,
+    "attemptedAt": "2025-09-25T16:40:35.778Z",
+    "userId": "1"
+  },
+  {
+    "id": "1758818472159",
+    "email": "admin@genera.com",
+    "ipAddress": "::1",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0",
+    "success": true,
+    "attemptedAt": "2025-09-25T16:41:12.159Z",
+    "userId": "1"
+  },
+  {
+    "id": "1758818576570",
+    "email": "m.ovmont@gmail.com",
+    "ipAddress": "::1",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0",
+    "success": false,
+    "failureReason": "User not found",
+    "attemptedAt": "2025-09-25T16:42:56.569Z"
+  },
+  {
+    "id": "1758818591668",
+    "email": "moviedo@agn.gov.ar",
+    "ipAddress": "::1",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0",
+    "success": false,
+    "failureReason": "Invalid password",
+    "attemptedAt": "2025-09-25T16:43:11.668Z",
+    "userId": "1758818104538"
+  },
+  {
+    "id": "1758818675731",
+    "email": "admin@genera.com",
+    "ipAddress": "::1",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0",
+    "success": true,
+    "attemptedAt": "2025-09-25T16:44:35.730Z",
+    "userId": "1"
+  },
+  {
+    "id": "1758818727777",
+    "email": "moviedo@agn.gov.ar",
+    "ipAddress": "::1",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0",
+    "success": false,
+    "failureReason": "Invalid password",
+    "attemptedAt": "2025-09-25T16:45:27.776Z",
+    "userId": "1758818104538"
+  },
+  {
+    "id": "1758821763737",
+    "email": "admin@genera.com",
+    "ipAddress": "::1",
+    "userAgent": "node",
+    "success": false,
+    "failureReason": "Invalid password",
+    "attemptedAt": "2025-09-25T17:36:03.736Z",
+    "userId": "1"
+  },
+  {
+    "id": "1758821782040",
+    "email": "admin@genera.com",
+    "ipAddress": "::1",
+    "userAgent": "node",
+    "success": true,
+    "attemptedAt": "2025-09-25T17:36:22.039Z",
+    "userId": "1"
+  },
+  {
+    "id": "1758821796254",
+    "email": "moviedo@agn.gov.ar",
+    "ipAddress": "::1",
+    "userAgent": "node",
+    "success": true,
+    "attemptedAt": "2025-09-25T17:36:36.254Z",
+    "userId": "1758818104538"
+  },
+  {
+    "id": "1758821889081",
+    "email": "admin@genera.com",
+    "ipAddress": "::1",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0",
+    "success": true,
+    "attemptedAt": "2025-09-25T17:38:09.081Z",
+    "userId": "1"
+  }
+]

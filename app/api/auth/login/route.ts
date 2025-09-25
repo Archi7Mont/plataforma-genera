@@ -1,49 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isValidEmail, sanitizeInput } from '@/lib/auth';
+import fs from 'fs';
+import path from 'path';
 
-// Simple password verification for development
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
+// Simple password verification
 function simpleVerify(password: string, hash: string): boolean {
   let passwordHash = 0;
   for (let i = 0; i < password.length; i++) {
     const char = password.charCodeAt(i);
     passwordHash = ((passwordHash << 5) - passwordHash) + char;
-    passwordHash = passwordHash & passwordHash; // Convert to 32bit integer
+    passwordHash = passwordHash & passwordHash; // Convert to 32-bit integer
   }
   return passwordHash.toString() === hash;
 }
 
-// Simple JWT implementation for Edge Runtime compatibility
+// Simple JWT implementation
 function createJWT(payload: any): string {
   const header = { alg: 'HS256', typ: 'JWT' };
   const now = Math.floor(Date.now() / 1000);
-  const tokenPayload = {
-    ...payload,
-    iat: now,
-    exp: now + (24 * 60 * 60) // 24 hours
-  };
+  const payloadWithExp = { ...payload, iat: now, exp: now + (24 * 60 * 60) }; // 24 hours
   
-  const encodedHeader = btoa(JSON.stringify(header));
-  const encodedPayload = btoa(JSON.stringify(tokenPayload));
-  const signature = btoa('mock-signature'); // In production, use proper HMAC
+  const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
+  const encodedPayload = Buffer.from(JSON.stringify(payloadWithExp)).toString('base64url');
+  const signature = 'mock-signature'; // In production, use proper HMAC
   
   return `${encodedHeader}.${encodedPayload}.${signature}`;
+}
+
+// Simple email validation
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+// Simple input sanitization
+function sanitizeInput(input: string): string {
+  return input.trim().toLowerCase();
 }
 
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json();
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                     request.headers.get('x-real-ip') || 
+                     'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
 
-    // Read password hashes sent from client (from localStorage)
-    // This enables the dev-only persistence of generated admin passwords
-    const hashesHeader = request.headers.get('x-password-hashes') || '[]';
-    let clientPasswordHashes: Array<{ email: string; passwordHash: string }>; 
-    try {
-      clientPasswordHashes = JSON.parse(hashesHeader);
-      if (!Array.isArray(clientPasswordHashes)) clientPasswordHashes = [];
-    } catch {
-      clientPasswordHashes = [];
-    }
-    
     // Validate input
     if (!email || !password) {
       return NextResponse.json(
@@ -53,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Sanitize and validate email
-    const sanitizedEmail = sanitizeInput(email.toLowerCase());
+    const sanitizedEmail = sanitizeInput(email);
     if (!isValidEmail(sanitizedEmail)) {
       return NextResponse.json(
         { success: false, error: 'Invalid email format' },
@@ -61,66 +65,89 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Simple authentication for development
-    // Check for admin user
-    if (sanitizedEmail === "admin@genera.com") {
-      // For admin, check against a hardcoded password for development
-      const adminPassword = "Admin1234!";
-
-      if (password !== adminPassword) {
-        // Try to validate against hashes provided by client
-        const entry = clientPasswordHashes.find((p) => p.email === sanitizedEmail);
-        if (!entry) {
-          return NextResponse.json(
-            { success: false, error: 'Invalid credentials' },
-            { status: 401 }
-          );
-        }
-
-        // Accept either plaintext (from /admin-reset) or hashed (from admin panel)
-        const isPlainMatch = password === entry.passwordHash;
-        const isHashMatch = simpleVerify(password, entry.passwordHash);
-        if (!isPlainMatch && !isHashMatch) {
-          return NextResponse.json(
-            { success: false, error: 'Invalid credentials' },
-            { status: 401 }
-          );
-        }
-      }
-    } else {
-      // For regular users, we'd normally check against a database
-      // For now, reject non-admin users
+    // Read users from database
+    const usersFile = path.join(process.cwd(), 'data', 'users.json');
+    const users = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+    
+    // Find user
+    const user = users.find(u => u.email === sanitizedEmail);
+    
+    if (!user) {
       return NextResponse.json(
-        { success: false, error: 'User not found or account not approved' },
+        { success: false, error: 'Invalid credentials' },
         { status: 401 }
       );
     }
 
-    // For development, create a simple admin user object
-    const userData = {
-      id: 'admin-id',
-      email: sanitizedEmail,
-      isAdmin: true,
-      status: 'approved'
-    };
+    // Check if user is active
+    if (!user.isActive) {
+      return NextResponse.json(
+        { success: false, error: 'Account is inactive' },
+        { status: 401 }
+      );
+    }
+
+    // Check if user is approved
+    if (user.status !== 'approved') {
+      return NextResponse.json(
+        { success: false, error: 'Account pending approval' },
+        { status: 401 }
+      );
+    }
+
+    // Verify password
+    let isValid = false;
+    
+    // Special case for admin user
+    if (sanitizedEmail === 'admin@genera.com' && password === 'Admin1234!') {
+      isValid = true;
+    } else if (user.passwordHash) {
+      // Check if it's a plain text password or a hash
+      if (user.passwordHash === password) {
+        isValid = true;
+      } else {
+        isValid = simpleVerify(password, user.passwordHash);
+      }
+    }
+    
+    if (!isValid) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid credentials' },
+        { status: 401 }
+      );
+    }
+
+    // Update user login info
+    const userIndex = users.findIndex(u => u.email === sanitizedEmail);
+    if (userIndex !== -1) {
+      users[userIndex].lastLoginAt = new Date().toISOString();
+      users[userIndex].loginCount = (users[userIndex].loginCount || 0) + 1;
+      fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+    }
 
     // Generate JWT token
     const token = createJWT({
-      userId: userData.id,
+      userId: user.id,
       email: sanitizedEmail,
-      isAdmin: userData.isAdmin || sanitizedEmail === 'admin@genera.com'
+      isAdmin: user.role === 'admin'
     });
+
+    // Prepare user data
+    const userData = {
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      organization: user.organization,
+      position: user.position,
+      isAdmin: user.role === 'admin',
+      status: user.status
+    };
 
     // Return success with token
     return NextResponse.json({
       success: true,
       token,
-      user: {
-        id: userData.id,
-        email: sanitizedEmail,
-        status: userData.status,
-        isAdmin: userData.isAdmin || sanitizedEmail === 'admin@genera.com'
-      }
+      user: userData
     });
 
   } catch (error) {

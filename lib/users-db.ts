@@ -68,8 +68,18 @@ export function addUser(email: string): any {
   const newUser = {
     id: Date.now().toString(),
     email,
+    fullName: '',
+    organization: '',
+    position: '',
     status: 'pending',
-    loginTime: new Date().toISOString()
+    role: 'user',
+    passwordHash: null,
+    createdAt: new Date().toISOString(),
+    lastLoginAt: null,
+    loginCount: 0,
+    isActive: true,
+    approvedBy: null,
+    approvedAt: null
   }
   
   users.push(newUser)
@@ -89,10 +99,18 @@ export function updateUserStatus(userId: string, status: string, updatedBy: stri
         [`${status}edAt`]: new Date().toISOString()
       }
       
+      // Ensure isActive is set correctly based on status
+      if (status === 'approved' || status === 'pending') {
+        updateData.isActive = true
+      } else if (status === 'blocked' || status === 'deleted' || status === 'rejected') {
+        updateData.isActive = false
+      }
+      
       // Special case for unblock
       if (status === 'approved' && user.status === 'blocked') {
         updateData.unblockedBy = updatedBy
         updateData.unblockedAt = new Date().toISOString()
+        updateData.isActive = true
       }
       
       return updateData

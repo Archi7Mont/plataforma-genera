@@ -195,12 +195,14 @@ export function deleteUser(id: string): boolean {
   if (userIndex === -1) return false
   
   const user = users[userIndex]
-  users[userIndex] = { ...user, status: 'deleted', deletedAt: new Date().toISOString() }
+  
+  // Actually remove the user from the array instead of just marking as deleted
+  users.splice(userIndex, 1)
   
   fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2))
   
   // Log user deletion
-  logSystemEvent('user_action', 'warning', `User deleted: ${user.email}`, { userId: id })
+  logSystemEvent('user_action', 'warning', `User permanently deleted: ${user.email}`, { userId: id })
   
   return true
 }

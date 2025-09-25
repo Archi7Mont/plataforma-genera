@@ -1,24 +1,66 @@
 [
   {
     "id": "1",
-    "email": "usuario1@ejemplo.com",
+    "email": "admin@genera.com",
+    "fullName": "Administrator",
+    "organization": "Géner.A System",
+    "position": "System Administrator",
+    "status": "approved",
+    "role": "admin",
+    "passwordHash": "Admin1234!",
+    "createdAt": "2024-09-24T15:52:00.000Z",
+    "lastLoginAt": "2025-09-25T18:31:10.355Z",
+    "loginCount": 24,
+    "isActive": true,
+    "approvedBy": "system",
+    "approvedAt": "2024-09-24T15:52:00.000Z"
+  },
+  {
+    "id": "1758818017487",
+    "email": "test@example.com",
+    "fullName": "Test User",
+    "organization": "Test Organization",
+    "position": "Test Position",
     "status": "pending",
-    "loginTime": "2024-09-24T15:52:00.000Z"
+    "role": "user",
+    "passwordHash": "-2084030579",
+    "createdAt": "2025-09-25T16:33:37.487Z",
+    "lastLoginAt": null,
+    "loginCount": 0,
+    "isActive": true,
+    "approvedBy": null,
+    "approvedAt": null
   },
   {
-    "id": "2",
-    "email": "usuario2@ejemplo.com",
-    "status": "approved",
-    "loginTime": "2024-09-23T15:52:00.000Z",
-    "approvedBy": "admin@genera.com",
-    "approvedAt": "2024-09-23T15:52:00.000Z"
-  },
-  {
-    "id": "1758810502877",
+    "id": "1758818104538",
     "email": "moviedo@agn.gov.ar",
+    "fullName": "Usuario Real",
+    "organization": "AGN",
+    "position": "Analista",
     "status": "approved",
-    "loginTime": "2025-09-25T14:28:22.877Z",
-    "approvededBy": "admin@genera.com",
-    "approvededAt": "2025-09-25T14:28:43.718Z"
+    "role": "user",
+    "passwordHash": "500822931",
+    "createdAt": "2025-09-25T16:35:04.538Z",
+    "lastLoginAt": "2025-09-25T18:32:51.764Z",
+    "loginCount": 6,
+    "isActive": true,
+    "approvedBy": "admin@genera.com",
+    "approvedAt": "2025-09-25T16:35:53.044Z"
+  },
+  {
+    "id": "1758822353886",
+    "email": "m.ovmont@gmail.com",
+    "fullName": "",
+    "organization": "",
+    "position": "",
+    "status": "approved",
+    "role": "user",
+    "passwordHash": "1116300947",
+    "createdAt": "2025-09-25T17:45:53.886Z",
+    "lastLoginAt": "2025-09-25T18:33:27.963Z",
+    "loginCount": 2,
+    "isActive": true,
+    "approvedBy": "admin@genera.com",
+    "approvedAt": "2025-09-25T18:24:15.341Z"
   }
 ]
