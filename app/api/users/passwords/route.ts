@@ -4,7 +4,9 @@ import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
-const PW_FILE = path.join(process.cwd(), 'data', 'generated_passwords.json');
+const repoDataDir = path.join(process.cwd(), 'data');
+const runtimeDataDir = process.env.VERCEL ? path.join('/tmp', 'data') : repoDataDir;
+const PW_FILE = path.join(runtimeDataDir, 'generated_passwords.json');
 
 function readPasswords(): Array<{ email: string; plainPassword: string; generatedAt: string }> {
   if (!fs.existsSync(PW_FILE)) return [];

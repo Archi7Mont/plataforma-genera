@@ -35,8 +35,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
-    // Read users from database
-    const usersFile = path.join(process.cwd(), 'data', 'users.json');
+    // Read users from database with /tmp support
+    const repoDataDir = path.join(process.cwd(), 'data');
+    const runtimeDataDir = process.env.VERCEL ? path.join('/tmp', 'data') : repoDataDir;
+    if (!fs.existsSync(runtimeDataDir)) fs.mkdirSync(runtimeDataDir, { recursive: true });
+    const usersFile = path.join(runtimeDataDir, 'users.json');
+    if (!fs.existsSync(usersFile)) {
+      const seedFile = path.join(repoDataDir, 'users.json');
+      if (fs.existsSync(seedFile)) fs.copyFileSync(seedFile, usersFile); else fs.writeFileSync(usersFile, '[]');
+    }
     const users = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
     
     // Find user
@@ -57,7 +64,7 @@ export async function POST(request: NextRequest) {
     fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
 
     // Record plain password for admin display (transient log)
-    const pwFile = path.join(process.cwd(), 'data', 'generated_passwords.json');
+    const pwFile = path.join(runtimeDataDir, 'generated_passwords.json');
     const now = new Date().toISOString();
     let pwList: Array<{ email: string; plainPassword: string; generatedAt: string }>; 
     if (fs.existsSync(pwFile)) {

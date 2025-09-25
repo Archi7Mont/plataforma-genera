@@ -32,7 +32,14 @@ interface User {
 
 export async function GET() {
   try {
-    const usersFile = path.join(process.cwd(), 'data', 'users.json');
+    const repoDataDir = path.join(process.cwd(), 'data');
+    const runtimeDataDir = process.env.VERCEL ? path.join('/tmp', 'data') : repoDataDir;
+    if (!fs.existsSync(runtimeDataDir)) fs.mkdirSync(runtimeDataDir, { recursive: true });
+    const usersFile = path.join(runtimeDataDir, 'users.json');
+    if (!fs.existsSync(usersFile)) {
+      const seedFile = path.join(repoDataDir, 'users.json');
+      if (fs.existsSync(seedFile)) fs.copyFileSync(seedFile, usersFile); else fs.writeFileSync(usersFile, '[]');
+    }
     const users: User[] = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
     
     return NextResponse.json(users);
@@ -67,7 +74,10 @@ export async function POST(request: NextRequest) {
       deletedBy?: string;
     };
 
-    const usersFile = path.join(process.cwd(), 'data', 'users.json');
+    const repoDataDir = path.join(process.cwd(), 'data');
+    const runtimeDataDir = process.env.VERCEL ? path.join('/tmp', 'data') : repoDataDir;
+    if (!fs.existsSync(runtimeDataDir)) fs.mkdirSync(runtimeDataDir, { recursive: true });
+    const usersFile = path.join(runtimeDataDir, 'users.json');
     const users: User[] = fs.existsSync(usersFile)
       ? JSON.parse(fs.readFileSync(usersFile, 'utf8'))
       : [];
