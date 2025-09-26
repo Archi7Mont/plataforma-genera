@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { store } from '@/lib/store';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -32,16 +31,7 @@ interface User {
 
 export async function GET() {
   try {
-    const repoDataDir = path.join(process.cwd(), 'data');
-    const runtimeDataDir = process.env.VERCEL ? path.join('/tmp', 'data') : repoDataDir;
-    if (!fs.existsSync(runtimeDataDir)) fs.mkdirSync(runtimeDataDir, { recursive: true });
-    const usersFile = path.join(runtimeDataDir, 'users.json');
-    if (!fs.existsSync(usersFile)) {
-      const seedFile = path.join(repoDataDir, 'users.json');
-      if (fs.existsSync(seedFile)) fs.copyFileSync(seedFile, usersFile); else fs.writeFileSync(usersFile, '[]');
-    }
-    const users: User[] = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
-    
+    const users = await store.getJson<User[]>('users', []);
     return NextResponse.json(users);
   } catch (error) {
     console.error('Error reading users:', error);
@@ -74,13 +64,7 @@ export async function POST(request: NextRequest) {
       deletedBy?: string;
     };
 
-    const repoDataDir = path.join(process.cwd(), 'data');
-    const runtimeDataDir = process.env.VERCEL ? path.join('/tmp', 'data') : repoDataDir;
-    if (!fs.existsSync(runtimeDataDir)) fs.mkdirSync(runtimeDataDir, { recursive: true });
-    const usersFile = path.join(runtimeDataDir, 'users.json');
-    const users: User[] = fs.existsSync(usersFile)
-      ? JSON.parse(fs.readFileSync(usersFile, 'utf8'))
-      : [];
+    const users: User[] = await store.getJson<User[]>('users', []);
 
     const now = new Date().toISOString();
 
@@ -109,7 +93,7 @@ export async function POST(request: NextRequest) {
         approvedAt: null,
       };
       users.push(newUser);
-      fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+      await store.setJson('users', users);
       return NextResponse.json({ success: true, users });
     }
 
@@ -147,13 +131,13 @@ export async function POST(request: NextRequest) {
         break;
       case 'delete':
         users.splice(index, 1);
-        fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+        await store.setJson('users', users);
         return NextResponse.json({ success: true, users });
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
-    fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+    await store.setJson('users', users);
     return NextResponse.json({ success: true, users });
   } catch (error) {
     console.error('Error updating user:', error);

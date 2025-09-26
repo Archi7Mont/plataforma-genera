@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { store } from '@/lib/store';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -13,16 +12,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
     
-    // Use same runtime path as other APIs (/tmp/data on Vercel)
-    const repoDataDir = path.join(process.cwd(), 'data');
-    const runtimeDataDir = process.env.VERCEL ? path.join('/tmp', 'data') : repoDataDir;
-    if (!fs.existsSync(runtimeDataDir)) fs.mkdirSync(runtimeDataDir, { recursive: true });
-    const usersFile = path.join(runtimeDataDir, 'users.json');
-    if (!fs.existsSync(usersFile)) {
-      const seedFile = path.join(repoDataDir, 'users.json');
-      if (fs.existsSync(seedFile)) fs.copyFileSync(seedFile, usersFile); else fs.writeFileSync(usersFile, '[]');
-    }
-    const users = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+    let users = await store.getJson<any[]>('users', []);
     
     // Check if user already exists
     const existingUser = users.find((user: any) => user.email === email);
@@ -41,7 +31,7 @@ export async function POST(request: NextRequest) {
         existingUser.rejectedAt = null;
         existingUser.blockedBy = null;
         existingUser.blockedAt = null;
-        fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+        await store.setJson('users', users);
         return NextResponse.json({ success: true, user: existingUser, users });
       }
       return NextResponse.json({ error: 'User already exists' }, { status: 400 });
@@ -66,7 +56,7 @@ export async function POST(request: NextRequest) {
     };
     
     users.push(newUser);
-    fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+    await store.setJson('users', users);
     
     return NextResponse.json({ success: true, user: newUser, users });
   } catch (error) {

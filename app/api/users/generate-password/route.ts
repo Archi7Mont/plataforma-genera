@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { store } from '@/lib/store';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -35,16 +34,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
-    // Read users from database with /tmp support
-    const repoDataDir = path.join(process.cwd(), 'data');
-    const runtimeDataDir = process.env.VERCEL ? path.join('/tmp', 'data') : repoDataDir;
-    if (!fs.existsSync(runtimeDataDir)) fs.mkdirSync(runtimeDataDir, { recursive: true });
-    const usersFile = path.join(runtimeDataDir, 'users.json');
-    if (!fs.existsSync(usersFile)) {
-      const seedFile = path.join(repoDataDir, 'users.json');
-      if (fs.existsSync(seedFile)) fs.copyFileSync(seedFile, usersFile); else fs.writeFileSync(usersFile, '[]');
-    }
-    const users = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+    const users = await store.getJson<any[]>('users', []);
     
     // Find user
     const userIndex = users.findIndex(user => user.email === email);
@@ -60,26 +50,16 @@ export async function POST(request: NextRequest) {
     // Update user with password hash
     users[userIndex].passwordHash = passwordHash;
     
-    // Save back to file
-    fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+    // Save back
+    await store.setJson('users', users);
 
     // Record plain password for admin display (transient log)
-    const pwFile = path.join(runtimeDataDir, 'generated_passwords.json');
     const now = new Date().toISOString();
-    let pwList: Array<{ email: string; plainPassword: string; generatedAt: string }>; 
-    if (fs.existsSync(pwFile)) {
-      try {
-        pwList = JSON.parse(fs.readFileSync(pwFile, 'utf8'));
-      } catch {
-        pwList = [];
-      }
-    } else {
-      pwList = [];
-    }
+    let pwList = await store.getJson<Array<{ email: string; plainPassword: string; generatedAt: string }>>('generated_passwords', []);
     const idx = pwList.findIndex(p => p.email === email);
     const entry = { email, plainPassword: password, generatedAt: now };
     if (idx >= 0) pwList[idx] = entry; else pwList.push(entry);
-    fs.writeFileSync(pwFile, JSON.stringify(pwList, null, 2));
+    await store.setJson('generated_passwords', pwList);
 
     // Return success with password
     return NextResponse.json({ 
