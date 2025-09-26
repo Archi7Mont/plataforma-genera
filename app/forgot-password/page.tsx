@@ -68,12 +68,10 @@ export default function ForgotPasswordPage() {
         return;
       }
 
-      // Check if user exists in system
-      const existingUsers = localStorage.getItem("genera_all_users");
-      const users = existingUsers ? JSON.parse(existingUsers) : [];
-
-      const user = users.find((u: any) => u.email === email);
-
+      // Check if user exists in system via API
+      const usersRes = await fetch('/api/users')
+      const users = await usersRes.json()
+      const user = Array.isArray(users) ? users.find((u: any) => u.email === email) : null
       if (!user) {
         setError("No se encontró una cuenta con este correo electrónico.");
         setIsLoading(false);
@@ -104,29 +102,18 @@ export default function ForgotPasswordPage() {
         return;
       }
 
-      // Check if there's already a pending password reset request
-      const existingRequests = localStorage.getItem("genera_password_reset_requests");
-      const requests = existingRequests ? JSON.parse(existingRequests) : [];
-
-      const existingRequest = requests.find((r: any) => r.email === email && r.status === "pending");
-
-      if (existingRequest) {
-        setError("Ya tiene una solicitud de restablecimiento de contraseña pendiente.");
-        setIsLoading(false);
-        return;
+      // Create password reset request via API (reflects in Admin → Contraseñas/Requests)
+      const prr = await fetch('/api/users/password-reset-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+      const prrJson = await prr.json()
+      if (!prrJson.success) {
+        setError(prrJson.error || 'Error al crear la solicitud de contraseña')
+        setIsLoading(false)
+        return
       }
-
-      // Create password reset request
-      const newRequest = {
-        id: Date.now().toString(),
-        email: email,
-        requestedAt: new Date().toISOString(),
-        status: "pending",
-        userId: user.id
-      };
-
-      const updatedRequests = [...requests, newRequest];
-      localStorage.setItem("genera_password_reset_requests", JSON.stringify(updatedRequests));
 
       setSuccess(true);
       setIsLoading(false);

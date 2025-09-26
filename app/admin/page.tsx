@@ -40,6 +40,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([])
   const [isAdmin, setIsAdmin] = useState(false)
   const [passwords, setPasswords] = useState<any[]>([])
+  const [passwordResetRequests, setPasswordResetRequests] = useState<any[]>([])
   const [generatedPassword, setGeneratedPassword] = useState<{email: string, password: string} | null>(null)
   const [storageHealth, setStorageHealth] = useState<any>(null)
   const [securityDashboard, setSecurityDashboard] = useState<any>(null)
@@ -100,6 +101,7 @@ export default function AdminPage() {
   useEffect(() => {
     loadUsers()
     loadPasswords()
+    loadPasswordResetRequests()
     checkStorageHealth()
     loadSecurityDashboard()
     loadLoginAttempts()
@@ -225,6 +227,16 @@ export default function AdminPage() {
       .then(res => res.json())
       .then(() => loadPasswords())
       .catch(() => loadPasswords())
+  }
+
+  const loadPasswordResetRequests = async () => {
+    try {
+      const res = await fetch('/api/users/password-reset-request')
+      const data = await res.json()
+      if (data && data.success) {
+        setPasswordResetRequests(Array.isArray(data.requests) ? data.requests : [])
+      }
+    } catch {}
   }
 
   const approveUser = async (userId: string) => {
@@ -805,6 +817,26 @@ export default function AdminPage() {
             <CardDescription>Contraseñas generadas para usuarios</CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Password reset requests */}
+            <div className="mb-6">
+              <h3 className="text-md font-semibold mb-2 text-gray-800">Solicitudes de Restablecimiento</h3>
+              {passwordResetRequests && Array.isArray(passwordResetRequests) && passwordResetRequests.length > 0 ? (
+                <div className="space-y-2">
+                  {passwordResetRequests.map((req) => (
+                    <div key={req.id} className="flex items-center justify-between p-3 bg-yellow-50 border border-yellow-200 rounded">
+                      <div className="flex-1">
+                        <p className="font-medium">{req.email}</p>
+                        <p className="text-xs text-gray-600">Solicitado: {new Date(req.requestedAt).toLocaleString()}</p>
+                      </div>
+                      <Badge>{req.status}</Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">Sin solicitudes de restablecimiento</p>
+              )}
+            </div>
+
             {passwords && Array.isArray(passwords) && passwords.length > 0 ? (
               <div className="space-y-3">
                 {passwords && Array.isArray(passwords) && passwords.map((passwordInfo) => (

@@ -100,31 +100,10 @@ export async function POST(request: NextRequest) {
     const users = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
     
     // Find user
-    let user = users.find((u: any) => u.email === sanitizedEmail);
+    const user = users.find((u: any) => u.email === sanitizedEmail);
     
-    // Auto-create pending user on first login attempt so it shows in admin dashboard
+    // Do NOT auto-create users on login. Ask them to register instead.
     if (!user) {
-      const nowIso = new Date().toISOString();
-      user = {
-        id: Date.now().toString(),
-        email: sanitizedEmail,
-        fullName: '',
-        organization: '',
-        position: '',
-        status: 'pending',
-        role: 'user',
-        passwordHash: null,
-        createdAt: nowIso,
-        lastLoginAt: null,
-        loginCount: 0,
-        isActive: true,
-        approvedBy: null,
-        approvedAt: null
-      } as any;
-      users.push(user);
-      fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
-
-      // Inform client that account was just created and is pending creation/approval
       return NextResponse.json(
         { success: false, error: 'Solicitar acceso' },
         { status: 401 }
