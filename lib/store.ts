@@ -5,12 +5,33 @@ import path from 'path';
 
 type JsonValue = any;
 
+function ensureKvEnvFromAliases(): void {
+  if (!process.env.KV_REST_API_URL) {
+    if (process.env.UPSTASH_REDIS_REST_URL) {
+      process.env.KV_REST_API_URL = process.env.UPSTASH_REDIS_REST_URL;
+    } else if (process.env.KV_REST_API_KV_REST_API_URL) {
+      process.env.KV_REST_API_URL = process.env.KV_REST_API_KV_REST_API_URL as string;
+    } else if (process.env.KV_REST_API_KV_URL) {
+      process.env.KV_REST_API_URL = process.env.KV_REST_API_KV_URL as string;
+    }
+  }
+  if (!process.env.KV_REST_API_TOKEN) {
+    if (process.env.UPSTASH_REDIS_REST_TOKEN) {
+      process.env.KV_REST_API_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+    } else if (process.env.KV_REST_API_KV_REST_API_TOKEN) {
+      process.env.KV_REST_API_TOKEN = process.env.KV_REST_API_KV_REST_API_TOKEN as string;
+    }
+  }
+}
+
 function isKvConfigured(): boolean {
+  ensureKvEnvFromAliases();
   return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 }
 
 // Lazy import to avoid bundling issues when KV is not configured
 async function getKv() {
+  ensureKvEnvFromAliases();
   const { kv } = await import('@vercel/kv');
   return kv as any;
 }
