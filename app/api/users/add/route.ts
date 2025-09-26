@@ -25,8 +25,25 @@ export async function POST(request: NextRequest) {
     const users = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
     
     // Check if user already exists
-    const existingUser = users.find(user => user.email === email);
+    const existingUser = users.find((user: any) => user.email === email);
     if (existingUser) {
+      // Always accept re-registration for any non-admin user: reset to pending
+      if (existingUser.email !== 'admin@genera.com') {
+        existingUser.fullName = fullName;
+        existingUser.organization = organization;
+        existingUser.status = 'pending';
+        existingUser.role = 'user';
+        existingUser.isActive = true;
+        existingUser.passwordHash = null;
+        existingUser.approvedBy = null;
+        existingUser.approvedAt = null;
+        existingUser.rejectedBy = null;
+        existingUser.rejectedAt = null;
+        existingUser.blockedBy = null;
+        existingUser.blockedAt = null;
+        fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+        return NextResponse.json({ success: true, user: existingUser, users });
+      }
       return NextResponse.json({ error: 'User already exists' }, { status: 400 });
     }
     

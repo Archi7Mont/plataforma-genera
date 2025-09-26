@@ -45,8 +45,10 @@ export default function AdminPage() {
   const [securityDashboard, setSecurityDashboard] = useState<any>(null)
   const [loginAttempts, setLoginAttempts] = useState<any[]>([])
   const [securityEvents, setSecurityEvents] = useState<any[]>([])
-  const [activeTab, setActiveTab] = useState<'users' | 'security' | 'passwords'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'security' | 'passwords' | 'questions'>('users')
+  const [questions, setQuestions] = useState<any[]>([])
   const router = useRouter()
+
 
   useEffect(() => {
     const verifyAuth = async () => {
@@ -102,6 +104,7 @@ export default function AdminPage() {
     loadSecurityDashboard()
     loadLoginAttempts()
     loadSecurityEvents()
+    loadQuestions()
   }, [])
 
   const loadUsers = async () => {
@@ -177,6 +180,16 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Error loading security events:', error)
     }
+  }
+
+  const loadQuestions = async () => {
+    try {
+      const res = await fetch('/api/questions')
+      const data = await res.json()
+      if (data && data.success) {
+        setQuestions(Array.isArray(data.questions) ? data.questions : [])
+      }
+    } catch {}
   }
 
   const generatePasswordForUser = async (email: string) => {
@@ -384,6 +397,16 @@ export default function AdminPage() {
                 }`}
               >
                 Contraseñas
+              </button>
+              <button
+                onClick={() => setActiveTab('questions')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === 'questions'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Preguntas Usuarios
               </button>
             </div>
             <Button
@@ -625,7 +648,6 @@ export default function AdminPage() {
           </CardContent>
         </Card>
         )}
-
         {/* Password generation card moved below user management per request */}
         <div className="mt-8">
           <Card className="bg-white shadow-lg border-0">
@@ -811,6 +833,36 @@ export default function AdminPage() {
               </div>
             ) : (
               <p className="text-gray-500 text-center py-8">No hay contraseñas generadas</p>
+            )}
+          </CardContent>
+        </Card>
+        )}
+
+        {/* Questions Tab */}
+        {activeTab === 'questions' && (
+        <Card className="bg-white shadow-lg border-0">
+          <CardHeader>
+            <CardTitle>Preguntas de Usuarios</CardTitle>
+            <CardDescription>Consultas recibidas desde la sección FAQ</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {questions && Array.isArray(questions) && questions.length > 0 ? (
+              <div className="space-y-3">
+                {questions.map((q) => (
+                  <div key={q.id} className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium text-gray-900">{q.userName} <span className="text-gray-500">({q.userEmail})</span></p>
+                        <p className="text-sm text-gray-600">Entidad Fiscalizadora: {q.userEntity || '—'}</p>
+                        <p className="text-sm text-gray-800 mt-2">{q.userQuestion}</p>
+                        <p className="text-xs text-gray-500 mt-1">{new Date(q.createdAt).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-8">No hay consultas de usuarios</p>
             )}
           </CardContent>
         </Card>

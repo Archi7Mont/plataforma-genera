@@ -651,15 +651,27 @@
             submitBtn.querySelector('.btn-text').textContent = 'Enviando...';
             submitBtn.querySelector('.btn-icon').textContent = '⏳';
 
-            // Simulate API call
-            setTimeout(() => {
-                // Hide form and show success message
-                this.style.display = 'none';
-                document.getElementById('successMessage').style.display = 'block';
-
-                // In a real implementation, you would send this data to your backend
-                console.log('Form submitted:', data);
-            }, 1500);
+            // Submit to backend
+            fetch('/api/questions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+              .then(res => res.json())
+              .then(result => {
+                  if (result && result.success) {
+                      this.style.display = 'none';
+                      document.getElementById('successMessage').style.display = 'block';
+                  } else {
+                      alert('Error al enviar la consulta. Inténtalo nuevamente.');
+                  }
+              })
+              .catch(() => alert('Error al enviar la consulta. Inténtalo nuevamente.'))
+              .finally(() => {
+                  submitBtn.disabled = false;
+                  submitBtn.querySelector('.btn-text').textContent = originalText;
+                  submitBtn.querySelector('.btn-icon').textContent = '📧';
+              });
         });
     </script>
 </body>
