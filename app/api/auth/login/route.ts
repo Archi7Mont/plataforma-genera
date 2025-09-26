@@ -124,9 +124,9 @@ export async function POST(request: NextRequest) {
       users.push(user);
       fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
 
-      // Inform client that account is pending approval
+      // Inform client that account was just created and is pending creation/approval
       return NextResponse.json(
-        { success: false, error: 'Account pending approval' },
+        { success: false, error: 'Solicitar acceso' },
         { status: 401 }
       );
     }
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
     // Check if user is approved
     if (user.status !== 'approved') {
       return NextResponse.json(
-        { success: false, error: 'Account pending approval' },
+        { success: false, error: 'Cuenta pendiente de aprobación' },
         { status: 401 }
       );
     }
