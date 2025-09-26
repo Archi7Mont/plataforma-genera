@@ -349,92 +349,7 @@ export default function AdminPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <Card className="bg-white shadow-lg border-0">
-            <CardHeader>
-              <CardTitle>Generación de Contraseñas</CardTitle>
-              <CardDescription>Genere nuevas contraseñas para usuarios</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2 mb-4">
-                <Button
-                  onClick={() => generatePasswordForUser('admin@genera.com')}
-                  className="bg-purple-600 hover:bg-purple-700"
-                >
-                  <Key className="w-4 h-4 mr-1" />
-                  Generar Contraseña Admin
-                </Button>
-              </div>
-
-              {generatedPassword && (
-                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded">
-                  <p className="font-semibold">Nueva contraseña generada para {generatedPassword.email}:</p>
-                  <p className="font-mono text-lg mt-2">{generatedPassword.password}</p>
-                </div>
-              )}
-
-              {/* Show generated password if available */}
-              {generatedPassword && (
-                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded">
-                  <h3 className="text-lg font-semibold mb-2 text-green-800">Contraseña Generada</h3>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">{generatedPassword.email}</p>
-                      <p className="font-mono text-sm bg-white p-2 rounded border">{generatedPassword.password}</p>
-                    </div>
-                    <Button 
-                      onClick={() => setGeneratedPassword(null)} 
-                      variant="outline" 
-                      size="sm"
-                      className="text-red-600 hover:bg-red-50"
-                    >
-                      Cerrar
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Show all users with their password status */}
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold mb-4">Estado de Contraseñas de Usuarios</h3>
-                <div className="space-y-2">
-                  {users && Array.isArray(users) && users.map((user) => (
-                    <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded border">
-                      <div className="flex-1">
-                        <p className="font-medium">{user.email}</p>
-                        <p className="text-sm text-gray-600">
-                          Estado: {user.status} | 
-                          Contraseña: {user.passwordHash ? 'Configurada' : 'No configurada'}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        {!user.passwordHash && (
-                          <Button
-                            onClick={() => generatePasswordForUser(user.email)}
-                            className="bg-purple-600 hover:bg-purple-700 text-white"
-                            size="sm"
-                          >
-                            Generar Contraseña
-                          </Button>
-                        )}
-                        {user.passwordHash && (
-                          <Button
-                            onClick={() => generatePasswordForUser(user.email)}
-                            variant="outline"
-                            className="border-purple-300 text-purple-600 hover:bg-purple-50"
-                            size="sm"
-                          >
-                            Regenerar
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        
 
         {/* Navigation Tabs */}
         <div className="mb-6">
@@ -532,7 +447,9 @@ export default function AdminPage() {
                       <div key={user.id} className="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{user.email}</p>
-                        <p className="text-sm text-gray-600">Registrado: {new Date(user.createdAt).toLocaleDateString()}</p>
+                          <p className="text-sm text-gray-700">Nombre y Apellido: {user.fullName || '—'}</p>
+                          <p className="text-sm text-gray-700">Entidad Fiscalizadora: {user.organization || '—'}</p>
+                          <p className="text-xs text-gray-500">Registrado: {new Date(user.createdAt).toLocaleDateString()}</p>
                         </div>
                         <div className="flex gap-2">
                           <Button
@@ -708,6 +625,34 @@ export default function AdminPage() {
           </CardContent>
         </Card>
         )}
+
+        {/* Password generation card moved below user management per request */}
+        <div className="mt-8">
+          <Card className="bg-white shadow-lg border-0">
+            <CardHeader>
+              <CardTitle>Generación de Contraseñas</CardTitle>
+              <CardDescription>Genere nuevas contraseñas para usuarios</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-2 mb-4">
+                <Button
+                  onClick={() => generatePasswordForUser('admin@genera.com')}
+                  className="bg-purple-600 hover:bg-purple-700"
+                >
+                  <Key className="w-4 h-4 mr-1" />
+                  Generar Contraseña Admin
+                </Button>
+              </div>
+
+              {generatedPassword && (
+                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded">
+                  <p className="font-semibold">Nueva contraseña generada para {generatedPassword.email}:</p>
+                  <p className="font-mono text-lg mt-2">{generatedPassword.password}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Security Monitoring Tab */}
         {activeTab === 'security' && (

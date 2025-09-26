@@ -100,11 +100,33 @@ export async function POST(request: NextRequest) {
     const users = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
     
     // Find user
-    const user = users.find(u => u.email === sanitizedEmail);
+    let user = users.find((u: any) => u.email === sanitizedEmail);
     
+    // Auto-create pending user on first login attempt so it shows in admin dashboard
     if (!user) {
+      const nowIso = new Date().toISOString();
+      user = {
+        id: Date.now().toString(),
+        email: sanitizedEmail,
+        fullName: '',
+        organization: '',
+        position: '',
+        status: 'pending',
+        role: 'user',
+        passwordHash: null,
+        createdAt: nowIso,
+        lastLoginAt: null,
+        loginCount: 0,
+        isActive: true,
+        approvedBy: null,
+        approvedAt: null
+      } as any;
+      users.push(user);
+      fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+
+      // Inform client that account is pending approval
       return NextResponse.json(
-        { success: false, error: 'Invalid credentials' },
+        { success: false, error: 'Account pending approval' },
         { status: 401 }
       );
     }

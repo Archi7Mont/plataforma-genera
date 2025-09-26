@@ -15,9 +15,7 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState({
     email: "",
     fullName: "",
-    organization: "",
-    position: "",
-    reason: ""
+    organization: ""
   })
   const [captchaVerified, setCaptchaVerified] = useState(false)
   const [error, setError] = useState("")
@@ -48,7 +46,7 @@ export default function RegisterPage() {
       return
     }
 
-    if (!formData.email || !formData.fullName || !formData.organization || !formData.reason) {
+    if (!formData.email || !formData.fullName || !formData.organization) {
       setError("Por favor complete todos los campos obligatorios")
       return
     }
@@ -87,12 +85,16 @@ export default function RegisterPage() {
         const response = await fetch('/api/users/add', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: formData.email })
+          body: JSON.stringify({ 
+            email: formData.email,
+            fullName: formData.fullName,
+            organization: formData.organization
+          })
         })
         
         const data = await response.json()
         if (!data.success) {
-          setError("Ya existe una solicitud para este email. Contacte al administrador si no ha recibido respuesta.")
+          setError("Ya existe una solicitud para este email.")
           setIsLoading(false)
           return
         }
@@ -110,9 +112,7 @@ export default function RegisterPage() {
       setFormData({
         email: "",
         fullName: "",
-        organization: "",
-        position: "",
-        reason: ""
+        organization: ""
       })
       
       // Reset reCAPTCHA
@@ -218,31 +218,7 @@ export default function RegisterPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="position">Cargo/Posición</Label>
-                <Input
-                  id="position"
-                  type="text"
-                  name="position"
-                  placeholder="Analista, Coordinador, etc."
-                  value={formData.position}
-                  onChange={handleInputChange}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="reason">Motivo de la Solicitud *</Label>
-                <textarea
-                  id="reason"
-                  name="reason"
-                  placeholder="Explique brevemente por qué necesita acceso al sistema..."
-                  required
-                  value={formData.reason}
-                  onChange={handleInputChange}
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all duration-200"
-                  rows={3}
-                />
-              </div>
+              {/* Removed Cargo/Posición and Motivo fields per request */}
 
               <div className="space-y-2">
                 <Label>Verificación de seguridad</Label>
