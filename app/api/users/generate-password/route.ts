@@ -29,15 +29,16 @@ function simpleHash(password: string): string {
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json();
+    const emailNormalized = String(email || '').trim().toLowerCase();
 
-    if (!email) {
+    if (!emailNormalized) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
     const users = await store.getJson<any[]>('users', []);
     
     // Find user
-    const userIndex = users.findIndex(user => user.email === email);
+    const userIndex = users.findIndex(user => (user.email || '').toLowerCase() === emailNormalized);
     
     if (userIndex === -1) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -56,8 +57,8 @@ export async function POST(request: NextRequest) {
     // Record plain password for admin display (transient log)
     const now = new Date().toISOString();
     let pwList = await store.getJson<Array<{ email: string; plainPassword: string; generatedAt: string }>>('generated_passwords', []);
-    const idx = pwList.findIndex(p => p.email === email);
-    const entry = { email, plainPassword: password, generatedAt: now };
+    const idx = pwList.findIndex(p => (p.email || '').toLowerCase() === emailNormalized);
+    const entry = { email: emailNormalized, plainPassword: password, generatedAt: now };
     if (idx >= 0) pwList[idx] = entry; else pwList.push(entry);
     await store.setJson('generated_passwords', pwList);
 
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       password: password,
-      email: email 
+      email: emailNormalized 
     });
 
   } catch (error) {

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { store } from '@/lib/store';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -65,42 +64,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Read users from database (support Vercel /tmp writeable dir)
-    const repoDataDir = path.join(process.cwd(), 'data');
-    const runtimeDataDir = process.env.VERCEL ? path.join('/tmp', 'data') : repoDataDir;
-    if (!fs.existsSync(runtimeDataDir)) fs.mkdirSync(runtimeDataDir, { recursive: true });
-    const usersFile = path.join(runtimeDataDir, 'users.json');
-    if (!fs.existsSync(usersFile)) {
-      const seedFile = path.join(repoDataDir, 'users.json');
-      if (fs.existsSync(seedFile)) {
-        fs.copyFileSync(seedFile, usersFile);
-      } else {
-        const now = new Date().toISOString();
-        const seed = [
-          {
-            id: '1',
-            email: 'admin@genera.com',
-            fullName: 'Administrator',
-            organization: 'Géner.A System',
-            position: 'System Administrator',
-            status: 'approved',
-            role: 'admin',
-            passwordHash: 'Admin1234!',
-            createdAt: now,
-            lastLoginAt: null,
-            loginCount: 0,
-            isActive: true,
-            approvedBy: 'system',
-            approvedAt: now
-          }
-        ];
-        fs.writeFileSync(usersFile, JSON.stringify(seed, null, 2));
-      }
+    // Read users from shared store (KV if configured, FS fallback)
+    let users = await store.getJson<any[]>('users', []);
+    // Ensure admin exists
+    if (!users.some(u => (u.email || '').toLowerCase() === 'admin@genera.com')) {
+      const nowIso = new Date().toISOString();
+      users.push({
+        id: '1',
+        email: 'admin@genera.com',
+        fullName: 'Administrator',
+        organization: 'Géner.A System',
+        position: 'System Administrator',
+        status: 'approved',
+        role: 'admin',
+        passwordHash: 'Admin1234!',
+        createdAt: nowIso,
+        lastLoginAt: null,
+        loginCount: 0,
+        isActive: true,
+        approvedBy: 'system',
+        approvedAt: nowIso
+      });
+      await store.setJson('users', users);
     }
-    const users = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
     
     // Find user
-    const user = users.find((u: any) => u.email === sanitizedEmail);
+    const user = users.find((u: any) => (u.email || '').toLowerCase() === sanitizedEmail);
     
     // Do NOT auto-create users on login. Ask them to register instead.
     if (!user) {
@@ -153,7 +142,7 @@ export async function POST(request: NextRequest) {
     if (userIndex !== -1) {
       users[userIndex].lastLoginAt = new Date().toISOString();
       users[userIndex].loginCount = (users[userIndex].loginCount || 0) + 1;
-      fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+      await store.setJson('users', users);
     }
 
     // Generate JWT token

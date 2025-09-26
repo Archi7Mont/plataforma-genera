@@ -9,8 +9,8 @@
     "role": "admin",
     "passwordHash": "Admin1234!",
     "createdAt": "2024-09-24T15:52:00.000Z",
-    "lastLoginAt": null,
-    "loginCount": 0,
+    "lastLoginAt": "2025-09-26T17:06:12.910Z",
+    "loginCount": 1,
     "isActive": true,
     "approvedBy": "system",
     "approvedAt": "2024-09-24T15:52:00.000Z"

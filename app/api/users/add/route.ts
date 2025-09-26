@@ -7,20 +7,22 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const { email, fullName = '', organization = '' } = await request.json();
+    const emailNormalized = String(email || '').trim().toLowerCase();
     
-    if (!email) {
+    if (!emailNormalized) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
     
     let users = await store.getJson<any[]>('users', []);
     
     // Check if user already exists
-    const existingUser = users.find((user: any) => user.email === email);
+    const existingUser = users.find((user: any) => (user.email || '').toLowerCase() === emailNormalized);
     if (existingUser) {
       // Always accept re-registration for any non-admin user: reset to pending
-      if (existingUser.email !== 'admin@genera.com') {
-        existingUser.fullName = fullName;
-        existingUser.organization = organization;
+      if ((existingUser.email || '').toLowerCase() !== 'admin@genera.com') {
+        existingUser.email = emailNormalized;
+        existingUser.fullName = String(fullName || '').trim();
+        existingUser.organization = String(organization || '').trim();
         existingUser.status = 'pending';
         existingUser.role = 'user';
         existingUser.isActive = true;
@@ -40,9 +42,9 @@ export async function POST(request: NextRequest) {
     // Create new user
     const newUser = {
       id: Date.now().toString(),
-      email,
-      fullName,
-      organization,
+      email: emailNormalized,
+      fullName: String(fullName || '').trim(),
+      organization: String(organization || '').trim(),
       position: '',
       status: 'pending',
       role: 'user',
