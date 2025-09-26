@@ -130,7 +130,10 @@ export async function POST(request: NextRequest) {
         (users[index] as any).unblockedAt = now;
         break;
       case 'delete':
-        users.splice(index, 1);
+        users[index].status = 'deleted';
+        users[index].isActive = false;
+        (users[index] as any).deletedBy = actor;
+        (users[index] as any).deletedAt = now;
         await store.setJson('users', users);
         return NextResponse.json({ success: true, users });
       default:
