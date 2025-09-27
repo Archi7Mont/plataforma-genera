@@ -87,36 +87,50 @@ function fsWriteJson(filename: string, value: JsonValue) {
 
 export const store = {
   async getJson<T = JsonValue>(key: string, fallback: T): Promise<T> {
+    console.log(`Getting ${key} from store`);
     if (isKvConfigured()) {
       try {
         const kv = await getKv();
         const value = await kv.get<T>(key);
+        console.log(`KV get ${key}:`, value !== null && value !== undefined ? 'SUCCESS' : 'NULL/UNDEFINED');
         if (value === null || value === undefined) return fallback;
         return value as T;
       } catch (error) {
         console.error('KV read error for key', key, ':', error);
         // Always fallback to filesystem if KV fails, regardless of environment
         console.log('Falling back to filesystem for', key);
-        return fsReadJson<T>(mapKeyToFile(key), fallback);
+        const fsValue = fsReadJson<T>(mapKeyToFile(key), fallback);
+        console.log(`FS get ${key} fallback:`, Array.isArray(fsValue) ? fsValue.length : typeof fsValue);
+        return fsValue;
       }
     }
-    return fsReadJson<T>(mapKeyToFile(key), fallback);
+    const fsValue = fsReadJson<T>(mapKeyToFile(key), fallback);
+    console.log(`FS get ${key}:`, Array.isArray(fsValue) ? fsValue.length : typeof fsValue);
+    return fsValue;
   },
   async setJson(key: string, value: JsonValue): Promise<void> {
+    console.log(`Setting ${key} in store, data size:`, Array.isArray(value) ? value.length : typeof value);
     if (isKvConfigured()) {
       try {
         const kv = await getKv();
         await kv.set(key, value);
         console.log('Successfully wrote to KV for key:', key);
+        // Also write to filesystem as backup in production
+        if (process.env.NODE_ENV === 'production') {
+          fsWriteJson(mapKeyToFile(key), value);
+          console.log('Also wrote to FS backup for key:', key);
+        }
         return;
       } catch (error) {
         console.error('KV write error for key', key, ':', error);
-        // Always fallback to filesystem if KV fails, regardless of environment
+        // Fallback to filesystem if KV fails
         console.log('Falling back to filesystem for', key);
         fsWriteJson(mapKeyToFile(key), value);
+        console.log('Wrote to FS fallback for key:', key);
       }
     }
     fsWriteJson(mapKeyToFile(key), value);
+    console.log('Wrote to FS for key:', key);
   }
 };
 
