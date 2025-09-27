@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, fullName = '', organization = '' } = await request.json();
+    const { email, fullName = '', organization = '', requestedIndexAccess = 'General' } = await request.json();
     const emailNormalized = String(email || '').trim().toLowerCase();
     
     if (!emailNormalized) {
@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
         existingUser.rejectedAt = null;
         existingUser.blockedBy = null;
         existingUser.blockedAt = null;
+        existingUser.requestedIndexAccess = String(requestedIndexAccess || 'General').trim();
         await store.setJson('users', users);
         return NextResponse.json({ success: true, user: existingUser, users });
       }
@@ -54,7 +55,8 @@ export async function POST(request: NextRequest) {
       loginCount: 0,
       isActive: true,
       approvedBy: null,
-      approvedAt: null
+      approvedAt: null,
+      requestedIndexAccess: String(requestedIndexAccess || 'General').trim()
     };
     
     users.push(newUser);

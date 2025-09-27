@@ -1,11 +1,32 @@
 import { NextResponse } from 'next/server'
-import { store, isKvConfigured } from '@/lib/store'
+import { store } from '@/lib/store'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
+    // Check KV configuration
+    const isKvConfigured = () => {
+      // Check for KV_REST_API_URL and KV_REST_API_TOKEN
+      if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+        return true;
+      }
+      // Check for UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN
+      if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+        return true;
+      }
+      // Check for KV_REST_API_KV_REST_API_URL and KV_REST_API_KV_REST_API_TOKEN
+      if (process.env.KV_REST_API_KV_REST_API_URL && process.env.KV_REST_API_KV_REST_API_TOKEN) {
+        return true;
+      }
+      // Check for KV_REST_API_KV_URL (if there's a token with similar pattern)
+      if (process.env.KV_REST_API_KV_URL && process.env.KV_REST_API_TOKEN) {
+        return true;
+      }
+      return false;
+    };
+
     // Test KV connection first
     let kvTestResult = null;
     if (isKvConfigured()) {

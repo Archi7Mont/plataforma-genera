@@ -33,13 +33,25 @@ interface User {
   unblockedAt?: string | null
   deletedBy?: string | null
   deletedAt?: string | null
+  requestedIndexAccess?: string | null
+}
+
+interface PasswordState {
+  email: string
+  status: 'no_password' | 'pending_approval' | 'active'
+  password?: string
+  generatedAt?: string
+  approvedAt?: string | null
+  approvedBy?: string | null
+  revokedAt?: string | null
+  revokedBy?: string | null
 }
 
 export default function AdminPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [users, setUsers] = useState<User[]>([])
   const [isAdmin, setIsAdmin] = useState(false)
-  const [passwords, setPasswords] = useState<any[]>([])
+  const [passwords, setPasswords] = useState<PasswordState[]>([])
   const [passwordResetRequests, setPasswordResetRequests] = useState<any[]>([])
   const [generatedPassword, setGeneratedPassword] = useState<{email: string, password: string} | null>(null)
   const [storageHealth, setStorageHealth] = useState<any>(null)
@@ -129,17 +141,87 @@ export default function AdminPage() {
   }
 
   const loadPasswords = () => {
-    // Read transient generated passwords from API
+    // Read password states from API
     fetch('/api/users/passwords')
       .then(res => res.json())
       .then(data => {
         if (data && data.success && Array.isArray(data.passwords)) {
-          setPasswords(data.passwords)
+          // Convert legacy password data to new PasswordState format
+          const passwordStates: PasswordState[] = data.passwords.map((p: any) => ({
+            email: p.email,
+            status: p.approvedAt ? 'active' : 'pending_approval',
+            password: p.plainPassword,
+            generatedAt: p.generatedAt,
+            approvedAt: p.approvedAt,
+            approvedBy: p.approvedBy,
+            revokedAt: null,
+            revokedBy: null
+          }))
+          setPasswords(passwordStates)
         } else {
           setPasswords([])
         }
       })
       .catch(() => setPasswords([]))
+  }
+
+  const approvePassword = async (email: string) => {
+    try {
+      const response = await fetch('/api/users/passwords/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, approvedBy: currentUser?.email || 'admin' })
+      })
+      const data = await response.json()
+      if (data.success) {
+        // Update password state
+        setPasswords(prev => prev.map(p =>
+          p.email === email
+            ? { ...p, status: 'active', approvedAt: new Date().toISOString(), approvedBy: currentUser?.email || 'admin' }
+            : p
+        ))
+      }
+    } catch (error) {
+      console.error('Error approving password:', error)
+    }
+  }
+
+  const rejectPassword = async (email: string) => {
+    try {
+      const response = await fetch('/api/users/passwords/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, rejectedBy: currentUser?.email || 'admin' })
+      })
+      const data = await response.json()
+      if (data.success) {
+        // Remove password state
+        setPasswords(prev => prev.filter(p => p.email !== email))
+      }
+    } catch (error) {
+      console.error('Error rejecting password:', error)
+    }
+  }
+
+  const revokePassword = async (email: string) => {
+    try {
+      const response = await fetch('/api/users/passwords/revoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, revokedBy: currentUser?.email || 'admin' })
+      })
+      const data = await response.json()
+      if (data.success) {
+        // Update password state to no_password
+        setPasswords(prev => prev.map(p =>
+          p.email === email
+            ? { ...p, status: 'no_password', revokedAt: new Date().toISOString(), revokedBy: currentUser?.email || 'admin' }
+            : p
+        ))
+      }
+    } catch (error) {
+      console.error('Error revoking password:', error)
+    }
   }
 
   const checkStorageHealth = () => {
@@ -481,9 +563,13 @@ export default function AdminPage() {
                     {users && Array.isArray(users) && users.filter(user => user.status === 'pending').map((user) => (
                       <div key={user.id} className="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                         <div className="flex-1">
-                          <p className="font-medium text-gray-900">{user.email}</p>
+                          <div className="flex items-center gap-2 mb-2">
+                            <p className="font-medium text-gray-900">{user.email}</p>
+                            <Badge variant="outline" className="text-yellow-600">Pendiente</Badge>
+                          </div>
                           <p className="text-sm text-gray-700">Nombre y Apellido: {user.fullName || '—'}</p>
                           <p className="text-sm text-gray-700">Entidad Fiscalizadora: {user.organization || '—'}</p>
+                          <p className="text-sm text-gray-700">Acceso solicitado: {user.requestedIndexAccess || 'General'}</p>
                           <p className="text-xs text-gray-500">Registrado: {new Date(user.createdAt).toLocaleDateString()}</p>
                         </div>
                         <div className="flex gap-2">
@@ -493,6 +579,14 @@ export default function AdminPage() {
                             size="sm"
                           >
                             Aprobar
+                          </Button>
+                          <Button
+                            onClick={() => blockUser(user.id)}
+                            variant="outline"
+                            className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                            size="sm"
+                          >
+                            Bloquear
                           </Button>
                           <Button
                             onClick={() => rejectUser(user.id)}
@@ -511,46 +605,117 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* Approved Users */}
+              {/* Approved Users with Password States */}
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-gray-800">Usuarios Aprobados</h3>
                 {users && Array.isArray(users) && users.filter(user => user.status === 'approved').length > 0 ? (
-                  <div className="space-y-3">
-                    {users && Array.isArray(users) && users.filter(user => user.status === 'approved').map((user) => (
-                      <div key={user.id} className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900">{user.email}</p>
-                          <p className="text-sm text-gray-600">
-                            Aprobado por: {user.approvedBy} el {new Date(user.approvedAt || '').toLocaleDateString()}
-                          </p>
+                  <div className="space-y-4">
+                    {users && Array.isArray(users) && users.filter(user => user.status === 'approved').map((user) => {
+                      const passwordState = passwords.find(p => p.email === user.email)
+                      return (
+                        <div key={user.id} className="border border-green-200 rounded-lg overflow-hidden">
+                          {/* User Info */}
+                          <div className="flex items-center justify-between p-4 bg-green-50">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <p className="font-medium text-gray-900">{user.email}</p>
+                                <Badge variant="secondary" className="bg-green-100 text-green-800">Aprobado</Badge>
+                              </div>
+                              <p className="text-sm text-gray-700">Nombre y Apellido: {user.fullName || '—'}</p>
+                              <p className="text-sm text-gray-700">Entidad Fiscalizadora: {user.organization || '—'}</p>
+                              <p className="text-sm text-gray-600">
+                                Aprobado por: {user.approvedBy} el {new Date(user.approvedAt || '').toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() => generatePasswordForUser(user.email)}
+                                className="bg-purple-600 hover:bg-purple-700 text-white"
+                                size="sm"
+                              >
+                                Generar Contraseña
+                              </Button>
+                              <Button
+                                onClick={() => blockUser(user.id)}
+                                variant="outline"
+                                className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                                size="sm"
+                              >
+                                Bloquear
+                              </Button>
+                              <Button
+                                onClick={() => deleteUser(user.id)}
+                                variant="outline"
+                                className="border-red-300 text-red-600 hover:bg-red-50"
+                                size="sm"
+                              >
+                                Eliminar
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Password State */}
+                          <div className="px-4 py-3 bg-white border-t border-green-200">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-gray-900 mb-1">
+                                  Estado de contraseña:
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  {passwordState ? (
+                                    <>
+                                      {passwordState.status === 'no_password' && (
+                                        <Badge variant="outline" className="text-gray-600">Sin contraseña</Badge>
+                                      )}
+                                      {passwordState.status === 'pending_approval' && (
+                                        <Badge variant="outline" className="text-yellow-600">Pendiente de aprobación</Badge>
+                                      )}
+                                      {passwordState.status === 'active' && (
+                                        <Badge variant="outline" className="text-green-600">Activa</Badge>
+                                      )}
+                                      <span className="text-xs text-gray-500">
+                                        {passwordState.generatedAt && `Generada: ${new Date(passwordState.generatedAt).toLocaleDateString()}`}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <Badge variant="outline" className="text-gray-600">Sin contraseña</Badge>
+                                  )}
+                                </div>
+                              </div>
+                              {passwordState && passwordState.status === 'pending_approval' && (
+                                <div className="flex gap-2">
+                                  <Button
+                                    onClick={() => approvePassword(user.email)}
+                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                    size="sm"
+                                  >
+                                    Aprobar
+                                  </Button>
+                                  <Button
+                                    onClick={() => rejectPassword(user.email)}
+                                    variant="outline"
+                                    className="border-red-300 text-red-600 hover:bg-red-50"
+                                    size="sm"
+                                  >
+                                    Rechazar
+                                  </Button>
+                                </div>
+                              )}
+                              {passwordState && passwordState.status === 'active' && (
+                                <Button
+                                  onClick={() => revokePassword(user.email)}
+                                  variant="outline"
+                                  className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                                  size="sm"
+                                >
+                                  Revocar
+                                </Button>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => generatePasswordForUser(user.email)}
-                            className="bg-purple-600 hover:bg-purple-700 text-white"
-                            size="sm"
-                          >
-                            Generar Contraseña
-                          </Button>
-                          <Button
-                            onClick={() => blockUser(user.id)}
-                            variant="outline"
-                            className="border-orange-300 text-orange-600 hover:bg-orange-50"
-                            size="sm"
-                          >
-                            Bloquear
-                          </Button>
-                          <Button
-                            onClick={() => deleteUser(user.id)}
-                            variant="outline"
-                            className="border-red-300 text-red-600 hover:bg-red-50"
-                            size="sm"
-                          >
-                            Eliminar
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 ) : (
                   <p className="text-gray-500 text-center py-4">No hay usuarios aprobados</p>

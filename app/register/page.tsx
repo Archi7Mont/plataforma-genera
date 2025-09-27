@@ -15,7 +15,8 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState({
     email: "",
     fullName: "",
-    organization: ""
+    organization: "",
+    requestedIndexAccess: "General"
   })
   const [captchaVerified, setCaptchaVerified] = useState(false)
   const [error, setError] = useState("")
@@ -46,7 +47,7 @@ export default function RegisterPage() {
       return
     }
 
-    if (!formData.email || !formData.fullName || !formData.organization) {
+    if (!formData.email || !formData.fullName || !formData.organization || !formData.requestedIndexAccess) {
       setError("Por favor complete todos los campos obligatorios")
       return
     }
@@ -85,10 +86,11 @@ export default function RegisterPage() {
         const response = await fetch('/api/users/add', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             email: formData.email,
             fullName: formData.fullName,
-            organization: formData.organization
+            organization: formData.organization,
+            requestedIndexAccess: formData.requestedIndexAccess
           })
         })
         
@@ -216,6 +218,24 @@ export default function RegisterPage() {
                   value={formData.organization}
                   onChange={handleInputChange}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="requestedIndexAccess">Acceso Solicitado *</Label>
+                <select
+                  id="requestedIndexAccess"
+                  name="requestedIndexAccess"
+                  required
+                  value={formData.requestedIndexAccess}
+                  onChange={(e) => setFormData(prev => ({ ...prev, requestedIndexAccess: e.target.value }))}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="General">Acceso General</option>
+                  <option value="IMPGAI Nacional">IMPGAI Nacional</option>
+                  <option value="IMPGAI Regional">IMPGAI Regional</option>
+                  <option value="IMPGPP Nacional">IMPGPP Nacional</option>
+                  <option value="IMPGPP Regional">IMPGPP Regional</option>
+                </select>
               </div>
 
               {/* Removed Cargo/Posición and Motivo fields per request */}
