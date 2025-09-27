@@ -304,6 +304,7 @@ export default function AdminPage() {
 
   const generatePasswordForUser = async (email: string) => {
     try {
+      console.log('Generating password for email:', email)
       const token = localStorage.getItem('auth_token')
       if (!token) {
         alert('Authentication required')

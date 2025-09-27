@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
 
     const { email } = await request.json();
     const emailNormalized = String(email || '').trim().toLowerCase();
+    console.log('Received email:', email, 'Normalized:', emailNormalized);
 
     if (!emailNormalized) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
@@ -73,12 +74,23 @@ export async function POST(request: NextRequest) {
 
     const users = await store.getJson<any[]>('users', []);
     console.log('Current users count:', users.length);
-    
+    console.log('Looking for user with email:', emailNormalized);
+    console.log('Available user emails:', users.map(u => u.email));
+
     // Find user
     const userIndex = users.findIndex(user => (user.email || '').toLowerCase() === emailNormalized);
-    
+
     if (userIndex === -1) {
+      console.log('User not found. Available users:', users.map(u => ({ email: u.email, status: u.status })));
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const user = users[userIndex];
+    console.log('Found user:', user.email, 'Status:', user.status);
+
+    // Check if user is approved
+    if (user.status !== 'approved') {
+      return NextResponse.json({ error: 'User must be approved before generating password' }, { status: 400 });
     }
 
     // Generate secure password
