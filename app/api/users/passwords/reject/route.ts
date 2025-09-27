@@ -6,6 +6,35 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
+    // Check authentication
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '') || request.headers.get('x-auth-token');
+    if (!token) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    // Simple JWT verification
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
+    let payload;
+    try {
+      payload = JSON.parse(atob(parts[1]));
+    } catch {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp < now) {
+      return NextResponse.json({ error: 'Token expired' }, { status: 401 });
+    }
+
+    if (!payload.isAdmin) {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
     const { email, rejectedBy } = await request.json()
 
     if (!email || !rejectedBy) {

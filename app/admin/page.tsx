@@ -127,13 +127,24 @@ export default function AdminPage() {
       const response = await fetch('/api/users')
       const data = await response.json()
       console.log('API Response:', data)
+      console.log('Response type:', typeof data)
+      console.log('Response keys:', data ? Object.keys(data) : 'null')
+
+      // Handle both direct array response and { users: [...] } response
+      let usersArray = []
       if (Array.isArray(data)) {
-        setUsers(data)
-        console.log('Users loaded:', data.length)
+        usersArray = data
+        console.log('Response is direct array with', usersArray.length, 'users')
+      } else if (data && Array.isArray(data.users)) {
+        usersArray = data.users
+        console.log('Response has users array with', usersArray.length, 'users')
       } else {
-        console.log('No users in response')
-        setUsers([])
+        console.log('No users array in response, data:', data)
+        usersArray = []
       }
+
+      setUsers(usersArray)
+      console.log('Users loaded:', usersArray.length)
     } catch (error) {
       console.error('Error loading users:', error)
       setUsers([])
@@ -146,17 +157,29 @@ export default function AdminPage() {
       .then(res => res.json())
       .then(data => {
         if (data && data.success && Array.isArray(data.passwords)) {
-          // Convert legacy password data to new PasswordState format
-          const passwordStates: PasswordState[] = data.passwords.map((p: any) => ({
-            email: p.email,
-            status: p.approvedAt ? 'active' : 'pending_approval',
-            password: p.plainPassword,
-            generatedAt: p.generatedAt,
-            approvedAt: p.approvedAt,
-            approvedBy: p.approvedBy,
-            revokedAt: null,
-            revokedBy: null
-          }))
+          // Convert to PasswordState format - handle all three states
+          const passwordStates: PasswordState[] = data.passwords.map((p: any) => {
+            let status: PasswordState['status'] = 'no_password'
+
+            if (p.plainPassword) {
+              if (p.approvedAt) {
+                status = 'active'
+              } else {
+                status = 'pending_approval'
+              }
+            }
+
+            return {
+              email: p.email,
+              status,
+              password: p.plainPassword,
+              generatedAt: p.generatedAt,
+              approvedAt: p.approvedAt,
+              approvedBy: p.approvedBy,
+              revokedAt: null,
+              revokedBy: null
+            }
+          })
           setPasswords(passwordStates)
         } else {
           setPasswords([])
@@ -180,6 +203,7 @@ export default function AdminPage() {
             ? { ...p, status: 'active', approvedAt: new Date().toISOString(), approvedBy: currentUser?.email || 'admin' }
             : p
         ))
+        loadPasswords() // Refresh to get updated data from server
       }
     } catch (error) {
       console.error('Error approving password:', error)
@@ -197,6 +221,7 @@ export default function AdminPage() {
       if (data.success) {
         // Remove password state
         setPasswords(prev => prev.filter(p => p.email !== email))
+        loadPasswords() // Refresh to get updated data from server
       }
     } catch (error) {
       console.error('Error rejecting password:', error)
@@ -218,6 +243,7 @@ export default function AdminPage() {
             ? { ...p, status: 'no_password', revokedAt: new Date().toISOString(), revokedBy: currentUser?.email || 'admin' }
             : p
         ))
+        loadPasswords() // Refresh to get updated data from server
       }
     } catch (error) {
       console.error('Error revoking password:', error)
@@ -278,16 +304,46 @@ export default function AdminPage() {
 
   const generatePasswordForUser = async (email: string) => {
     try {
+      const token = localStorage.getItem('auth_token')
+      if (!token) {
+        alert('Authentication required')
+        return
+      }
+
       const response = await fetch('/api/users/generate-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ email })
       })
-      
+
       const result = await response.json()
-      
+
       if (result.success) {
         setGeneratedPassword({ email: result.email, password: result.password })
+        // Update password state to pending approval
+        setPasswords(prev => {
+          const existing = prev.find(p => p.email === email)
+          if (existing) {
+            return prev.map(p => p.email === email
+              ? { ...p, status: 'pending_approval', password: result.password, generatedAt: new Date().toISOString(), approvedAt: null, approvedBy: null }
+              : p
+            )
+          } else {
+            return [...prev, {
+              email: result.email,
+              status: 'pending_approval',
+              password: result.password,
+              generatedAt: new Date().toISOString(),
+              approvedAt: null,
+              approvedBy: null,
+              revokedAt: null,
+              revokedBy: null
+            }]
+          }
+        })
         loadUsers() // Refresh users to show updated password hash
         loadPasswords() // Refresh password display
       } else {
@@ -301,9 +357,18 @@ export default function AdminPage() {
   }
 
   const deletePassword = (email: string) => {
+    const token = localStorage.getItem('auth_token')
+    if (!token) {
+      alert('Authentication required')
+      return
+    }
+
     fetch('/api/users/passwords', {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify({ email })
     })
       .then(res => res.json())
@@ -323,9 +388,19 @@ export default function AdminPage() {
 
   const approveUser = async (userId: string) => {
     try {
+      console.log('Approving user:', userId, 'by:', currentUser?.email)
+      const token = localStorage.getItem('auth_token')
+      if (!token) {
+        alert('Authentication required')
+        return
+      }
+
       const response = await fetch('/api/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           action: 'approve',
           userId,
@@ -333,19 +408,34 @@ export default function AdminPage() {
         })
       })
       const data = await response.json()
+      console.log('Approval response:', data)
       if (data.success) {
         setUsers(data.users)
+        console.log('User approved successfully')
+      } else {
+        console.error('Approval failed:', data.error)
+        alert('Error approving user: ' + data.error)
       }
     } catch (error) {
       console.error('Error approving user:', error)
+      alert('Error approving user: ' + (error as Error).message)
     }
   }
 
   const rejectUser = async (userId: string) => {
     try {
+      const token = localStorage.getItem('auth_token')
+      if (!token) {
+        alert('Authentication required')
+        return
+      }
+
       const response = await fetch('/api/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           action: 'reject',
           userId,
@@ -355,17 +445,29 @@ export default function AdminPage() {
       const data = await response.json()
       if (data.success) {
         setUsers(data.users)
+      } else {
+        alert('Error rejecting user: ' + data.error)
       }
     } catch (error) {
       console.error('Error rejecting user:', error)
+      alert('Error rejecting user: ' + (error as Error).message)
     }
   }
 
   const blockUser = async (userId: string) => {
     try {
+      const token = localStorage.getItem('auth_token')
+      if (!token) {
+        alert('Authentication required')
+        return
+      }
+
       const response = await fetch('/api/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           action: 'block',
           userId,
@@ -375,17 +477,29 @@ export default function AdminPage() {
       const data = await response.json()
       if (data.success) {
         setUsers(data.users)
+      } else {
+        alert('Error blocking user: ' + data.error)
       }
     } catch (error) {
       console.error('Error blocking user:', error)
+      alert('Error blocking user: ' + (error as Error).message)
     }
   }
 
   const unblockUser = async (userId: string) => {
     try {
+      const token = localStorage.getItem('auth_token')
+      if (!token) {
+        alert('Authentication required')
+        return
+      }
+
       const response = await fetch('/api/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           action: 'unblock',
           userId,
@@ -395,17 +509,29 @@ export default function AdminPage() {
       const data = await response.json()
       if (data.success) {
         setUsers(data.users)
+      } else {
+        alert('Error unblocking user: ' + data.error)
       }
     } catch (error) {
       console.error('Error unblocking user:', error)
+      alert('Error unblocking user: ' + (error as Error).message)
     }
   }
 
   const deleteUser = async (userId: string) => {
     try {
+      const token = localStorage.getItem('auth_token')
+      if (!token) {
+        alert('Authentication required')
+        return
+      }
+
       const response = await fetch('/api/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           action: 'delete',
           userId,
@@ -415,9 +541,12 @@ export default function AdminPage() {
       const data = await response.json()
       if (data.success) {
         setUsers(data.users)
+      } else {
+        alert('Error deleting user: ' + data.error)
       }
     } catch (error) {
       console.error('Error deleting user:', error)
+      alert('Error deleting user: ' + (error as Error).message)
     }
   }
 
