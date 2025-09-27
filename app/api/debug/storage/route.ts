@@ -12,16 +12,9 @@ export async function GET() {
       if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
         return true;
       }
-      // Check for UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN
-      if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-        return true;
-      }
-      // Check for KV_REST_API_KV_REST_API_URL and KV_REST_API_KV_REST_API_TOKEN
-      if (process.env.KV_REST_API_KV_REST_API_URL && process.env.KV_REST_API_KV_REST_API_TOKEN) {
-        return true;
-      }
-      // Check for KV_REST_API_KV_URL (if there's a token with similar pattern)
-      if (process.env.KV_REST_API_KV_URL && process.env.KV_REST_API_TOKEN) {
+      // Check for UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN (must start with https)
+      if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN &&
+          process.env.UPSTASH_REDIS_REST_URL.startsWith('https://')) {
         return true;
       }
       return false;
