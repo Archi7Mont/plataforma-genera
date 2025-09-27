@@ -77,9 +77,14 @@ export const store = {
         const value = await kv.get<T>(key);
         if (value === null || value === undefined) return fallback;
         return value as T;
-      } catch {
-        // Fallback to FS on any KV error
-        return fsReadJson<T>(mapKeyToFile(key), fallback);
+      } catch (error) {
+        console.error('KV read error for key', key, ':', error);
+        // Only fallback to FS in development or if KV is not configured
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('Falling back to filesystem for', key);
+          return fsReadJson<T>(mapKeyToFile(key), fallback);
+        }
+        throw error;
       }
     }
     return fsReadJson<T>(mapKeyToFile(key), fallback);
@@ -89,9 +94,17 @@ export const store = {
       try {
         const kv = await getKv();
         await kv.set(key, value);
+        console.log('Successfully wrote to KV for key:', key);
         return;
-      } catch {
-        // Fallthrough to FS write
+      } catch (error) {
+        console.error('KV write error for key', key, ':', error);
+        // Only fallback to FS in development or if KV is not configured
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('Falling back to filesystem for', key);
+          fsWriteJson(mapKeyToFile(key), value);
+        } else {
+          throw error;
+        }
       }
     }
     fsWriteJson(mapKeyToFile(key), value);
