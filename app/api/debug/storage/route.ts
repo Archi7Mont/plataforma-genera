@@ -8,16 +8,16 @@ export async function GET() {
   try {
     // Check KV configuration
     const isKvConfigured = () => {
-      // Check for KV_REST_API_URL and KV_REST_API_TOKEN
-      if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-        return true;
+      // Check if we have valid KV credentials (not just "SET" placeholders)
+      const url = process.env.KV_REST_API_URL;
+      const token = process.env.KV_REST_API_TOKEN;
+
+      // Must have both URL and token, and URL must be a proper HTTPS URL
+      if (!url || !token || url === 'SET' || token === 'SET' || !url.startsWith('https://')) {
+        return false;
       }
-      // Check for UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN (must start with https)
-      if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN &&
-          process.env.UPSTASH_REDIS_REST_URL.startsWith('https://')) {
-        return true;
-      }
-      return false;
+
+      return true;
     };
 
     // Test KV connection first

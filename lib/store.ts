@@ -22,13 +22,17 @@ function ensureKvEnvFromAliases(): void {
 
 function isKvConfigured(): boolean {
   ensureKvEnvFromAliases();
-  // In development, only use KV if explicitly configured
-  // In production, require both URL and TOKEN
-  if (process.env.NODE_ENV === 'development') {
-    return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
-  } else {
-    return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+
+  // Check if we have valid KV credentials (not just "SET" placeholders)
+  const url = process.env.KV_REST_API_URL;
+  const token = process.env.KV_REST_API_TOKEN;
+
+  // Must have both URL and token, and URL must be a proper HTTPS URL
+  if (!url || !token || url === 'SET' || token === 'SET' || !url.startsWith('https://')) {
+    return false;
   }
+
+  return true;
 }
 
 // Lazy import to avoid bundling issues when KV is not configured
