@@ -26,14 +26,30 @@ function ensureKvEnvFromAliases(): void {
 
 function isKvConfigured(): boolean {
   ensureKvEnvFromAliases();
-  return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+  // In development, only use KV if explicitly configured
+  // In production, require both URL and TOKEN
+  if (process.env.NODE_ENV === 'development') {
+    return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+  } else {
+    return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+  }
 }
 
 // Lazy import to avoid bundling issues when KV is not configured
 async function getKv() {
   ensureKvEnvFromAliases();
-  const { kv } = await import('@vercel/kv');
-  return kv as any;
+  // Only import KV if it's actually configured
+  if (!isKvConfigured()) {
+    throw new Error('KV not configured - missing required environment variables');
+  }
+
+  try {
+    const { kv } = await import('@vercel/kv');
+    return kv as any;
+  } catch (error) {
+    console.error('Failed to import @vercel/kv:', error);
+    throw error;
+  }
 }
 
 function getRuntimeDataDir(): string {
@@ -79,12 +95,9 @@ export const store = {
         return value as T;
       } catch (error) {
         console.error('KV read error for key', key, ':', error);
-        // Only fallback to FS in development or if KV is not configured
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('Falling back to filesystem for', key);
-          return fsReadJson<T>(mapKeyToFile(key), fallback);
-        }
-        throw error;
+        // Always fallback to filesystem if KV fails, regardless of environment
+        console.log('Falling back to filesystem for', key);
+        return fsReadJson<T>(mapKeyToFile(key), fallback);
       }
     }
     return fsReadJson<T>(mapKeyToFile(key), fallback);
@@ -98,13 +111,9 @@ export const store = {
         return;
       } catch (error) {
         console.error('KV write error for key', key, ':', error);
-        // Only fallback to FS in development or if KV is not configured
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('Falling back to filesystem for', key);
-          fsWriteJson(mapKeyToFile(key), value);
-        } else {
-          throw error;
-        }
+        // Always fallback to filesystem if KV fails, regardless of environment
+        console.log('Falling back to filesystem for', key);
+        fsWriteJson(mapKeyToFile(key), value);
       }
     }
     fsWriteJson(mapKeyToFile(key), value);
