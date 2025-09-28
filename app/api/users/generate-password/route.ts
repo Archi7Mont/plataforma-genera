@@ -48,8 +48,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const now = Math.floor(Date.now() / 1000);
-    if (payload.exp < now) {
+    const tokenTimestamp = Math.floor(Date.now() / 1000);
+    if (payload.exp < tokenTimestamp) {
       return NextResponse.json({ error: 'Token expired' }, { status: 401 });
     }
 
@@ -107,10 +107,10 @@ export async function POST(request: NextRequest) {
     console.log('Users saved successfully');
 
     // Record plain password for admin display (transient log)
-    const now = new Date().toISOString();
+    const currentTimestamp = new Date().toISOString();
     let pwList = await store.getJson<Array<{ email: string; plainPassword: string; generatedAt: string }>>('generated_passwords', []);
     const idx = pwList.findIndex(p => (p.email || '').toLowerCase() === emailNormalized);
-    const entry = { email: emailNormalized, plainPassword: password, generatedAt: now };
+    const entry = { email: emailNormalized, plainPassword: password, generatedAt: currentTimestamp };
     if (idx >= 0) pwList[idx] = entry; else pwList.push(entry);
     console.log('Saving password list to store...');
     await store.setJson('generated_passwords', pwList);

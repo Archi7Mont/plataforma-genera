@@ -61,8 +61,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const now = Math.floor(Date.now() / 1000);
-    if (payload.exp < now) {
+    const tokenTimestamp = Math.floor(Date.now() / 1000);
+    if (payload.exp < tokenTimestamp) {
       return NextResponse.json({ error: 'Token expired' }, { status: 401 });
     }
 
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
 
     const users: User[] = await store.getJson<User[]>('users', []);
 
-    const now = new Date().toISOString();
+    const currentTimestamp = new Date().toISOString();
 
     if (action === 'add') {
       if (!email) {
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
         status: 'pending',
         role: 'user',
         passwordHash: null,
-        createdAt: now,
+        createdAt: currentTimestamp,
         lastLoginAt: null,
         loginCount: 0,
         isActive: true,
@@ -138,31 +138,31 @@ export async function POST(request: NextRequest) {
         users[index].status = 'approved';
         users[index].isActive = true;
         users[index].approvedBy = actor;
-        users[index].approvedAt = now;
+        users[index].approvedAt = currentTimestamp;
         break;
       case 'reject':
         users[index].status = 'rejected';
         users[index].isActive = false;
         (users[index] as any).rejectedBy = actor;
-        (users[index] as any).rejectedAt = now;
+        (users[index] as any).rejectedAt = currentTimestamp;
         break;
       case 'block':
         users[index].status = 'blocked';
         users[index].isActive = false;
         (users[index] as any).blockedBy = actor;
-        (users[index] as any).blockedAt = now;
+        (users[index] as any).blockedAt = currentTimestamp;
         break;
       case 'unblock':
         users[index].status = 'approved';
         users[index].isActive = true;
         (users[index] as any).unblockedBy = actor;
-        (users[index] as any).unblockedAt = now;
+        (users[index] as any).unblockedAt = currentTimestamp;
         break;
       case 'delete':
         users[index].status = 'deleted';
         users[index].isActive = false;
         (users[index] as any).deletedBy = actor;
-        (users[index] as any).deletedAt = now;
+        (users[index] as any).deletedAt = currentTimestamp;
         await store.setJson('users', users);
         return NextResponse.json({ success: true, users });
       default:
