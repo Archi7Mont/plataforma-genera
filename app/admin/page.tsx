@@ -151,48 +151,47 @@ export default function AdminPage() {
     }
   }
 
-  const loadPasswords = () => {
-    // Read password states from API
-    fetch('/api/users/passwords')
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.success && Array.isArray(data.passwords)) {
-          // Convert to PasswordState format - handle all three states
-          const passwordStates: PasswordState[] = data.passwords.map((p: any) => {
-            let status: PasswordState['status'] = 'no_password'
+  const loadPasswords = async () => {
+    try {
+      const token = localStorage.getItem('auth_token')
+      if (!token) {
+        setPasswords([])
+        return
+      }
 
-            if (p.plainPassword) {
-              if (p.approvedAt) {
-                status = 'active'
-              } else {
-                status = 'pending_approval'
-              }
-            }
-
-            return {
-              email: p.email,
-              status,
-              password: p.plainPassword,
-              generatedAt: p.generatedAt,
-              approvedAt: p.approvedAt,
-              approvedBy: p.approvedBy,
-              revokedAt: null,
-              revokedBy: null
-            }
-          })
-          setPasswords(passwordStates)
-        } else {
-          setPasswords([])
+      const response = await fetch('/api/users/passwords', {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
       })
-      .catch(() => setPasswords([]))
+      const data = await response.json()
+
+      if (data && data.success && Array.isArray(data.passwords)) {
+        // API already returns PasswordState format
+        setPasswords(data.passwords)
+      } else {
+        setPasswords([])
+      }
+    } catch (error) {
+      console.error('Error loading passwords:', error)
+      setPasswords([])
+    }
   }
 
   const approvePassword = async (email: string) => {
     try {
+      const token = localStorage.getItem('auth_token')
+      if (!token) {
+        alert('Authentication required')
+        return
+      }
+
       const response = await fetch('/api/users/passwords/approve', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ email, approvedBy: currentUser?.email || 'admin' })
       })
       const data = await response.json()
@@ -212,9 +211,18 @@ export default function AdminPage() {
 
   const rejectPassword = async (email: string) => {
     try {
+      const token = localStorage.getItem('auth_token')
+      if (!token) {
+        alert('Authentication required')
+        return
+      }
+
       const response = await fetch('/api/users/passwords/reject', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ email, rejectedBy: currentUser?.email || 'admin' })
       })
       const data = await response.json()
@@ -230,9 +238,18 @@ export default function AdminPage() {
 
   const revokePassword = async (email: string) => {
     try {
+      const token = localStorage.getItem('auth_token')
+      if (!token) {
+        alert('Authentication required')
+        return
+      }
+
       const response = await fetch('/api/users/passwords/revoke', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ email, revokedBy: currentUser?.email || 'admin' })
       })
       const data = await response.json()
