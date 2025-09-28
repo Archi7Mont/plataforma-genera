@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
       email: p.email,
       status: p.approvedAt ? 'active' : 'pending_approval',
       password: p.plainPassword,
+      plainPassword: p.plainPassword,
       generatedAt: p.generatedAt,
       approvedAt: p.approvedAt,
       approvedBy: p.approvedBy,

@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
 import { NavigationButtons } from "@/components/navigation-buttons"
-import { Key } from "lucide-react"
+import { Key, Eye, EyeOff, RotateCcw } from "lucide-react"
 // Password management is now handled via API endpoints
 import { checkLocalStorageHealth } from "@/utils/passwordUtils"
 
@@ -40,6 +40,7 @@ interface PasswordState {
   email: string
   status: 'no_password' | 'pending_approval' | 'active'
   password?: string
+  plainPassword?: string
   generatedAt?: string
   approvedAt?: string | null
   approvedBy?: string | null
@@ -60,6 +61,7 @@ export default function AdminPage() {
   const [securityEvents, setSecurityEvents] = useState<any[]>([])
   const [activeTab, setActiveTab] = useState<'users' | 'security' | 'passwords' | 'questions'>('users')
   const [questions, setQuestions] = useState<any[]>([])
+  const [passwordVisibility, setPasswordVisibility] = useState<{[email: string]: boolean}>({})
   const router = useRouter()
 
 
@@ -93,12 +95,9 @@ export default function AdminPage() {
           return
         }
 
-        const userData = localStorage.getItem("genera_user")
-        if (userData) {
-          const user = JSON.parse(userData)
-          setCurrentUser(user)
-          setIsAdmin(true)
-        }
+        console.log('Admin panel - Auth successful, setting user and admin status')
+        setCurrentUser(result.user)
+        setIsAdmin(true)
       } catch (error) {
         console.error('Auth verification failed:', error)
         localStorage.removeItem("auth_token")
@@ -111,6 +110,7 @@ export default function AdminPage() {
   }, [router])
 
   useEffect(() => {
+    console.log('Admin panel - useEffect triggered, loading data...')
     loadUsers()
     loadPasswords()
     loadPasswordResetRequests()
@@ -124,7 +124,21 @@ export default function AdminPage() {
   const loadUsers = async () => {
     try {
       console.log('Loading users from API...')
-      const response = await fetch('/api/users')
+      let response = await fetch('/api/users')
+      
+      // If token expired, try to refresh
+      if (response.status === 401) {
+        console.log('Token expired, refreshing...')
+        const token = await refreshToken()
+        if (token) {
+          response = await fetch('/api/users', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
+        }
+      }
+
       const data = await response.json()
       console.log('API Response:', data)
       console.log('Response type:', typeof data)
@@ -143,6 +157,11 @@ export default function AdminPage() {
         usersArray = []
       }
 
+      // Debug pending users specifically
+      const pendingUsers = usersArray.filter((user: any) => user.status === 'pending')
+      console.log('Pending users found:', pendingUsers.length)
+      console.log('Pending users:', pendingUsers.map((u: any) => ({ email: u.email, fullName: u.fullName, status: u.status })))
+
       setUsers(usersArray)
       console.log('Users loaded:', usersArray.length)
     } catch (error) {
@@ -151,19 +170,51 @@ export default function AdminPage() {
     }
   }
 
+  const refreshToken = async () => {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'admin@genera.com', password: 'Admin1234!' })
+      })
+      const result = await response.json()
+      if (result.success && result.token) {
+        localStorage.setItem('auth_token', result.token)
+        return result.token
+      }
+    } catch (error) {
+      console.error('Token refresh failed:', error)
+    }
+    return null
+  }
+
   const loadPasswords = async () => {
     try {
-      const token = localStorage.getItem('auth_token')
+      let token = localStorage.getItem('auth_token')
       if (!token) {
         setPasswords([])
         return
       }
 
-      const response = await fetch('/api/users/passwords', {
+      let response = await fetch('/api/users/passwords', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       })
+
+      // If token expired, try to refresh
+      if (response.status === 401) {
+        console.log('Token expired, refreshing...')
+        token = await refreshToken()
+        if (token) {
+          response = await fetch('/api/users/passwords', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
+        }
+      }
+
       const data = await response.json()
 
       if (data && data.success && Array.isArray(data.passwords)) {
@@ -392,6 +443,54 @@ export default function AdminPage() {
       .then(res => res.json())
       .then(() => loadPasswords())
       .catch(() => loadPasswords())
+  }
+
+  const resetPassword = async (email: string) => {
+    try {
+      const token = localStorage.getItem('auth_token')
+      if (!token) {
+        alert('Authentication required')
+        return
+      }
+
+      // First delete the existing password
+      await fetch('/api/users/passwords', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ email })
+      })
+
+      // Then generate a new password
+      const response = await fetch('/api/users/generate-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ email })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        alert(`Nueva contraseña generada para ${email}: ${result.password}`)
+        loadPasswords() // Refresh the password list
+      } else {
+        alert('Error generando nueva contraseña: ' + result.error)
+      }
+    } catch (error) {
+      console.error('Error resetting password:', error)
+      alert('Error reseteando contraseña: ' + (error as Error).message)
+    }
+  }
+
+  const togglePasswordVisibility = (email: string) => {
+    setPasswordVisibility(prev => ({
+      ...prev,
+      [email]: !prev[email]
+    }))
   }
 
   const loadPasswordResetRequests = async () => {
@@ -663,6 +762,18 @@ export default function AdminPage() {
             >
               🔄 Actualizar
             </Button>
+            <Button
+              onClick={() => {
+                console.log('Current users state:', users)
+                console.log('Pending users in state:', users?.filter(u => u.status === 'pending'))
+                alert(`Total users: ${users?.length || 0}, Pending: ${users?.filter(u => u.status === 'pending').length || 0}`)
+              }}
+              variant="outline"
+              size="sm"
+              className="text-green-600 hover:bg-green-50 ml-2"
+            >
+              🐛 Debug
+            </Button>
           </div>
         </div>
 
@@ -705,9 +816,9 @@ export default function AdminPage() {
               {/* Pending Users */}
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-gray-800">Usuarios Pendientes de Aprobación</h3>
-                {users && Array.isArray(users) && users.filter(user => user.status === 'pending').length > 0 ? (
+                {users && Array.isArray(users) && users.filter((user: any) => user.status === 'pending').length > 0 ? (
                   <div className="space-y-3">
-                    {users && Array.isArray(users) && users.filter(user => user.status === 'pending').map((user) => (
+                    {users && Array.isArray(users) && users.filter((user: any) => user.status === 'pending').map((user: any) => (
                       <div key={user.id} className="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
@@ -755,9 +866,9 @@ export default function AdminPage() {
               {/* Approved Users with Password States */}
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-gray-800">Usuarios Aprobados</h3>
-                {users && Array.isArray(users) && users.filter(user => user.status === 'approved').length > 0 ? (
+                {users && Array.isArray(users) && users.filter((user: any) => user.status === 'approved').length > 0 ? (
                   <div className="space-y-4">
-                    {users && Array.isArray(users) && users.filter(user => user.status === 'approved').map((user) => {
+                    {users && Array.isArray(users) && users.filter((user: any) => user.status === 'approved').map((user: any) => {
                       const passwordState = passwords.find(p => p.email === user.email)
                       return (
                         <div key={user.id} className="border border-green-200 rounded-lg overflow-hidden">
@@ -872,9 +983,9 @@ export default function AdminPage() {
               {/* Blocked Users */}
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-gray-800">Usuarios Bloqueados</h3>
-                {users && Array.isArray(users) && users.filter(user => user.status === 'blocked').length > 0 ? (
+                {users && Array.isArray(users) && users.filter((user: any) => user.status === 'blocked').length > 0 ? (
                   <div className="space-y-3">
-                    {users && Array.isArray(users) && users.filter(user => user.status === 'blocked').map((user) => (
+                    {users && Array.isArray(users) && users.filter((user: any) => user.status === 'blocked').map((user: any) => (
                       <div key={user.id} className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-lg">
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{user.email}</p>
@@ -910,9 +1021,9 @@ export default function AdminPage() {
               {/* Rejected Users */}
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-gray-800">Usuarios Rechazados</h3>
-                {users && Array.isArray(users) && users.filter(user => user.status === 'rejected').length > 0 ? (
+                {users && Array.isArray(users) && users.filter((user: any) => user.status === 'rejected').length > 0 ? (
                   <div className="space-y-3">
-                    {users && Array.isArray(users) && users.filter(user => user.status === 'rejected').map((user) => (
+                    {users && Array.isArray(users) && users.filter((user: any) => user.status === 'rejected').map((user: any) => (
                       <div key={user.id} className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{user.email}</p>
@@ -948,9 +1059,9 @@ export default function AdminPage() {
               {/* Deleted Users */}
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-gray-800">Usuarios Eliminados</h3>
-                {users && Array.isArray(users) && users.filter(user => user.status === 'deleted').length > 0 ? (
+                {users && Array.isArray(users) && users.filter((user: any) => user.status === 'deleted').length > 0 ? (
                   <div className="space-y-3">
-                    {users && Array.isArray(users) && users.filter(user => user.status === 'deleted').map((user) => (
+                    {users && Array.isArray(users) && users.filter((user: any) => user.status === 'deleted').map((user: any) => (
                       <div key={user.id} className="flex items-center justify-between p-4 bg-gray-100 border border-gray-300 rounded-lg">
                         <div className="flex-1">
                           <p className="font-medium text-gray-500 line-through">{user.email}</p>
@@ -1156,13 +1267,35 @@ export default function AdminPage() {
                     <div className="flex-1">
                       <p className="font-medium text-gray-900">{passwordInfo.email}</p>
                       <p className="text-sm text-gray-600">
-                        Generada: {new Date(passwordInfo.generatedAt).toLocaleString()}
+                        Generada: {passwordInfo.generatedAt ? new Date(passwordInfo.generatedAt as string).toLocaleString() : 'N/A'}
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="font-mono text-sm bg-white px-3 py-1 rounded border">
-                        {passwordInfo.plainPassword || 'Contraseña no disponible'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm bg-white px-3 py-1 rounded border">
+                          {passwordVisibility[passwordInfo.email] 
+                            ? (passwordInfo.plainPassword || passwordInfo.password || 'Contraseña no disponible')
+                            : '••••••••'
+                          }
+                        </span>
+                        <Button
+                          onClick={() => togglePasswordVisibility(passwordInfo.email)}
+                          variant="outline"
+                          size="sm"
+                          className="p-2"
+                        >
+                          {passwordVisibility[passwordInfo.email] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      <Button 
+                        onClick={() => resetPassword(passwordInfo.email)} 
+                        variant="outline" 
+                        size="sm"
+                        className="text-blue-600 hover:bg-blue-50"
+                      >
+                        <RotateCcw className="h-4 w-4 mr-1" />
+                        Reset
+                      </Button>
                       <Button 
                         onClick={() => deletePassword(passwordInfo.email)} 
                         variant="outline" 
