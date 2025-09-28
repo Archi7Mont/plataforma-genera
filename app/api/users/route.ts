@@ -35,7 +35,7 @@ export async function GET() {
     return NextResponse.json({ success: true, users });
   } catch (error) {
     console.error('Error reading users:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -45,29 +45,29 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('authorization');
     const token = authHeader?.replace('Bearer ', '') || request.headers.get('x-auth-token');
     if (!token) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
     }
 
     // Simple JWT verification
     const parts = token.split('.');
     if (parts.length !== 3) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+      return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
     }
 
     let payload;
     try {
       payload = JSON.parse(atob(parts[1]));
     } catch {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+      return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
     }
 
     const tokenTimestamp = Math.floor(Date.now() / 1000);
     if (payload.exp < tokenTimestamp) {
-      return NextResponse.json({ error: 'Token expired' }, { status: 401 });
+      return NextResponse.json({ success: false, error: 'Token expired' }, { status: 401 });
     }
 
     if (!payload.isAdmin) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
     }
 
     const body = await request.json();
@@ -99,11 +99,11 @@ export async function POST(request: NextRequest) {
 
     if (action === 'add') {
       if (!email) {
-        return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+        return NextResponse.json({ success: false, error: 'Email is required' }, { status: 400 });
       }
       const exists = users.find(u => u.email === email);
       if (exists) {
-        return NextResponse.json({ error: 'User with this email already exists' }, { status: 400 });
+        return NextResponse.json({ success: false, error: 'User with this email already exists' }, { status: 400 });
       }
       const newUser: User = {
         id: Date.now().toString(),
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     const index = users.findIndex(u => u.id === (userId as string));
     if (index === -1) {
       console.log('User not found. UserId received:', userId, 'Type:', typeof userId);
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
     const actor = currentUserEmail || approvedBy || rejectedBy || blockedBy || unblockedBy || deletedBy || 'admin';
 
@@ -171,13 +171,13 @@ export async function POST(request: NextRequest) {
         await store.setJson('users', users);
         return NextResponse.json({ success: true, users });
       default:
-        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+        return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });
     }
 
     await store.setJson('users', users);
     return NextResponse.json({ success: true, users });
   } catch (error) {
     console.error('Error updating user:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
