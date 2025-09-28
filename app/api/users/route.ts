@@ -127,8 +127,13 @@ export async function POST(request: NextRequest) {
     }
 
     // For actions that require an existing user
+    console.log('Looking for user with ID:', userId);
+    console.log('Available user IDs:', users.map(u => u.id));
+    console.log('User ID types:', users.map(u => typeof u.id));
+
     const index = users.findIndex(u => u.id === (userId as string));
     if (index === -1) {
+      console.log('User not found. UserId received:', userId, 'Type:', typeof userId);
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     const actor = currentUserEmail || approvedBy || rejectedBy || blockedBy || unblockedBy || deletedBy || 'admin';

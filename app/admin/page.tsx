@@ -389,7 +389,7 @@ export default function AdminPage() {
 
   const approveUser = async (userId: string) => {
     try {
-      console.log('Approving user:', userId, 'by:', currentUser?.email)
+      console.log('Approving user:', userId, 'by:', currentUser?.email, 'Type:', typeof userId)
       const token = localStorage.getItem('auth_token')
       if (!token) {
         alert('Authentication required')
