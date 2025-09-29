@@ -1,14 +1,35 @@
 import { NextResponse } from 'next/server'
-import { store } from '@/lib/store'
+import { prisma } from '@/lib/db'
 
 // Force dynamic rendering for this API route
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
+    // Skip database operations during build phase
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      console.log('Skipping database operations during build phase for test-users');
+      return NextResponse.json({
+        success: true,
+        users: [{
+          id: 'test-user-1',
+          email: 'test@example.com',
+          fullName: 'Test User',
+          organization: 'Test Org',
+          status: 'APPROVED',
+          role: 'USER',
+          isActive: true,
+          loginCount: 0,
+          createdAt: new Date().toISOString()
+        }],
+        count: 1,
+        message: 'Build phase - mock data returned'
+      });
+    }
+
     console.log('Testing users API...')
-    const users = await store.getJson<any[]>('users', [])
-    console.log('Users from store:', users)
+    const users = await prisma.user.findMany()
+    console.log('Users from database:', users)
 
     return NextResponse.json({
       success: true,

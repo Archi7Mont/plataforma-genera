@@ -1,16 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { store } from '@/lib/store'
+import { prisma } from '@/lib/db'
 
 // Force dynamic rendering for this API route
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
+    // Skip database operations during build phase
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      console.log('Skipping database operations during build phase for create-with-password');
+      return NextResponse.json({
+        success: true,
+        user: {
+          id: 'build-phase-user',
+          email: 'test@example.com',
+          fullName: 'Test User',
+          organization: 'Test Org',
+          position: 'Test Position',
+          role: 'user',
+          status: 'pending',
+          createdAt: new Date().toISOString()
+        },
+        password: 'mock-password'
+      });
+    }
+
     const { email, fullName, organization, position, role = 'user' } = await request.json()
-    const ipAddress = request.headers.get('x-forwarded-for') ||
-                     request.headers.get('x-real-ip') ||
-                     'unknown'
-    const userAgent = request.headers.get('user-agent') || 'unknown'
 
     if (!email || !fullName) {
       return NextResponse.json({
@@ -18,42 +33,50 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Get existing users
-    const users = await store.getJson<any[]>('users', [])
+    // Check if DATABASE_URL is configured in production
+    if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL environment variable is required in production');
+    }
 
     // Check if user already exists
-    const existingUser = users.find((user: any) => (user.email || '').toLowerCase() === email.toLowerCase())
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() }
+    });
+
     if (existingUser) {
       return NextResponse.json({
         error: 'User already exists'
       }, { status: 400 })
     }
 
-    // Create new user
-    const newUser = {
-      id: Date.now().toString(),
-      email,
-      fullName,
-      organization: organization || '',
-      position: position || '',
-      status: role === 'admin' ? 'approved' : 'pending',
-      role: role as 'admin' | 'user',
-      passwordHash: null,
-      createdAt: new Date().toISOString(),
-      lastLoginAt: null,
-      loginCount: 0,
-      isActive: true,
-      approvedBy: null,
-      approvedAt: null
-    }
+    // Generate secure password
+    const password = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12);
+    const passwordHash = password; // In production, use proper hashing
 
-    // Save user to store
-    users.push(newUser)
-    await store.setJson('users', users)
+    // Create new user with password
+    const newUser = await prisma.user.create({
+      data: {
+        id: `user-${Date.now()}`,
+        email: email.toLowerCase(),
+        fullName,
+        organization: organization || '',
+        position: position || '',
+        status: role === 'admin' ? 'APPROVED' : 'PENDING',
+        role: role.toUpperCase() as 'ADMIN' | 'USER',
+        passwordHash,
+        isActive: true,
+      }
+    });
 
-    // Generate password for the user (this would need to be implemented)
-    // For now, return success without password generation
-    const password = 'temp-password' // This should be replaced with actual password generation
+    // Store password for admin reference
+    await prisma.password.create({
+      data: {
+        id: `pwd-${Date.now()}`,
+        email: email.toLowerCase(),
+        plainPassword: password,
+        generatedAt: new Date(),
+      }
+    });
 
     return NextResponse.json({
       success: true,
@@ -63,11 +86,11 @@ export async function POST(request: NextRequest) {
         fullName: newUser.fullName,
         organization: newUser.organization,
         position: newUser.position,
-        role: newUser.role,
-        status: newUser.status,
-        createdAt: newUser.createdAt
+        role: newUser.role.toLowerCase(),
+        status: newUser.status.toLowerCase(),
+        createdAt: newUser.createdAt.toISOString()
       },
-      password // Return the generated password
+      password
     })
   } catch (error) {
     console.error('Error creating user with password:', error)

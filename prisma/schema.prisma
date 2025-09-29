@@ -51,6 +51,26 @@ model Password {
   @@map("passwords")
 }
 
+model Question {
+  id          String   @id @default(cuid())
+  userName    String
+  userEmail   String
+  userEntity  String?
+  userQuestion String
+  createdAt   DateTime @default(now())
+
+  @@map("questions")
+}
+
+model PasswordResetRequest {
+  id          String   @id @default(cuid())
+  email       String
+  requestedAt DateTime @default(now())
+  status      String   @default("PENDING")
+
+  @@map("password_reset_requests")
+}
+
 enum UserStatus {
   PENDING
   APPROVED
