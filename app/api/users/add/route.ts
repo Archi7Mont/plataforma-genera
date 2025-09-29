@@ -14,6 +14,22 @@ export async function POST(request: NextRequest) {
       throw new Error('DATABASE_URL environment variable is required in production');
     }
 
+    // Skip database operations during build phase
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      console.log('Skipping database operations during build phase for user registration');
+      return NextResponse.json({
+        success: true,
+        user: {
+          id: 'build-phase-user',
+          email: emailNormalized,
+          fullName: String(fullName || '').trim(),
+          organization: String(organization || '').trim(),
+          status: 'PENDING'
+        },
+        users: []
+      });
+    }
+
     if (!emailNormalized) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }

@@ -32,6 +32,28 @@ interface User {
 
 export async function GET() {
   try {
+    // Skip database operations during build phase
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      console.log('Skipping database operations during build phase for users listing');
+      return NextResponse.json({
+        success: true,
+        users: [{
+          id: 'build-phase-user',
+          email: 'admin@genera.com',
+          fullName: 'Administrator',
+          organization: 'Géner.A System',
+          position: 'System Administrator',
+          status: 'APPROVED',
+          role: 'ADMIN',
+          isActive: true,
+          loginCount: 0,
+          createdAt: new Date().toISOString(),
+          approvedBy: 'system',
+          approvedAt: new Date().toISOString()
+        }]
+      });
+    }
+
     // Check if DATABASE_URL is configured in production
     if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
       throw new Error('DATABASE_URL environment variable is required in production');

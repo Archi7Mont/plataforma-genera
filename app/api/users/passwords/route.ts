@@ -34,6 +34,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
+    // Skip database operations during build phase
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      console.log('Skipping database operations during build phase for passwords listing');
+      return NextResponse.json({
+        success: true,
+        passwords: [{
+          email: 'admin@genera.com',
+          status: 'active',
+          password: 'mock-password',
+          plainPassword: 'mock-password',
+          generatedAt: new Date().toISOString(),
+          approvedAt: new Date().toISOString(),
+          approvedBy: 'system',
+          revokedAt: null,
+          revokedBy: null
+        }]
+      });
+    }
+
     // Check if DATABASE_URL is configured in production
     if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
       throw new Error('DATABASE_URL environment variable is required in production');
@@ -97,6 +116,12 @@ export async function DELETE(request: NextRequest) {
     const { email } = await request.json();
     const emailNormalized = String(email || '').trim().toLowerCase();
     if (!emailNormalized) return NextResponse.json({ success: false, error: 'Email is required' }, { status: 400 });
+
+    // Skip database operations during build phase
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      console.log('Skipping database operations during build phase for password deletion');
+      return NextResponse.json({ success: true, passwords: [] });
+    }
 
     // Check if DATABASE_URL is configured in production
     if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {

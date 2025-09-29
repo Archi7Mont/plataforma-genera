@@ -69,6 +69,15 @@ export async function POST(request: NextRequest) {
       throw new Error('DATABASE_URL environment variable is required in production');
     }
 
+    // Skip database operations during build phase
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      console.log('Skipping database operations during build phase for login');
+      return NextResponse.json({
+        success: false,
+        error: 'Service temporarily unavailable during deployment'
+      }, { status: 503 });
+    }
+
     // Find user in database
     const user = await prisma.user.findUnique({
       where: { email: sanitizedEmail }
@@ -112,6 +121,15 @@ export async function POST(request: NextRequest) {
       });
     }
     
+    // Skip remaining logic during build phase
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      console.log('Skipping login logic during build phase');
+      return NextResponse.json({
+        success: false,
+        error: 'Service temporarily unavailable during deployment'
+      }, { status: 503 });
+    }
+
     // Do NOT auto-create users on login. Ask them to register instead.
     if (!user) {
       return NextResponse.json(
@@ -129,7 +147,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is approved
-    if (user.status !== 'approved') {
+    if (user.status !== 'APPROVED') {
       return NextResponse.json(
         { success: false, error: 'Cuenta pendiente de aprobación' },
         { status: 401 }
@@ -138,7 +156,7 @@ export async function POST(request: NextRequest) {
 
     // Verify password
     let isValid = false;
-    
+
     // Special case for admin user
     if (sanitizedEmail === 'admin@genera.com' && password === 'Admin1234!') {
       isValid = true;
@@ -150,7 +168,7 @@ export async function POST(request: NextRequest) {
         isValid = simpleVerify(password, user.passwordHash);
       }
     }
-    
+
     if (!isValid) {
       return NextResponse.json(
         { success: false, error: 'Invalid credentials' },

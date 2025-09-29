@@ -65,6 +65,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
+    // Skip database operations during build phase
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      console.log('Skipping database operations during build phase for password generation');
+      return NextResponse.json({
+        success: true,
+        password: 'mock-generated-password',
+        email: emailNormalized,
+        debug: {
+          usersCount: 1,
+          passwordsCount: 1,
+          userStillExists: true
+        }
+      });
+    }
+
     // Check if DATABASE_URL is configured in production
     if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
       throw new Error('DATABASE_URL environment variable is required in production');
