@@ -175,7 +175,20 @@ export async function POST(request: NextRequest) {
     }
 
     await store.setJson('users', users);
-    return NextResponse.json({ success: true, users });
+    
+    // Verify the user was actually updated
+    const verifyUsers = await store.getJson<User[]>('users', []);
+    const updatedUser = verifyUsers.find(u => u.id === userId);
+    
+    console.log('User update verification:', {
+      userId,
+      action,
+      userFound: !!updatedUser,
+      userStatus: updatedUser?.status,
+      totalUsers: verifyUsers.length
+    });
+    
+    return NextResponse.json({ success: true, users: verifyUsers });
   } catch (error) {
     console.error('Error updating user:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });

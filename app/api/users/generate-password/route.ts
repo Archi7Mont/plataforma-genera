@@ -122,6 +122,16 @@ export async function POST(request: NextRequest) {
     console.log('Verification - Users count after save:', verifyUsers.length);
     console.log('Verification - Passwords count after save:', verifyPasswords.length);
 
+    // Ensure the user still exists after password generation
+    const userStillExists = verifyUsers.find(u => (u.email || '').toLowerCase() === emailNormalized);
+    if (!userStillExists) {
+      console.error('CRITICAL: User disappeared after password generation!');
+      return NextResponse.json({ 
+        success: false, 
+        error: 'User data inconsistency detected' 
+      }, { status: 500 });
+    }
+
     // Return success with password
     return NextResponse.json({ 
       success: true, 
@@ -129,7 +139,8 @@ export async function POST(request: NextRequest) {
       email: emailNormalized,
       debug: {
         usersCount: verifyUsers.length,
-        passwordsCount: verifyPasswords.length
+        passwordsCount: verifyPasswords.length,
+        userStillExists: !!userStillExists
       }
     });
 

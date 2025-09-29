@@ -124,16 +124,23 @@ export default function AdminPage() {
   const loadUsers = async () => {
     try {
       console.log('Loading users from API...')
-      let response = await fetch('/api/users')
+      const token = localStorage.getItem('auth_token')
+      let response = await fetch('/api/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
       
       // If token expired, try to refresh
       if (response.status === 401) {
         console.log('Token expired, refreshing...')
-        const token = await refreshToken()
-        if (token) {
+        const newToken = await refreshToken()
+        if (newToken) {
           response = await fetch('/api/users', {
             headers: {
-              'Authorization': `Bearer ${token}`
+              'Authorization': `Bearer ${newToken}`,
+              'Content-Type': 'application/json'
             }
           })
         }
@@ -247,13 +254,9 @@ export default function AdminPage() {
       })
       const data = await response.json()
       if (data.success) {
-        // Update password state
-        setPasswords(prev => prev.map(p =>
-          p.email === email
-            ? { ...p, status: 'active', approvedAt: new Date().toISOString(), approvedBy: currentUser?.email || 'admin' }
-            : p
-        ))
-        loadPasswords() // Refresh to get updated data from server
+        // Refresh all data after password approval
+        loadUsers()
+        loadPasswords()
       }
     } catch (error) {
       console.error('Error approving password:', error)
@@ -278,9 +281,9 @@ export default function AdminPage() {
       })
       const data = await response.json()
       if (data.success) {
-        // Remove password state
-        setPasswords(prev => prev.filter(p => p.email !== email))
-        loadPasswords() // Refresh to get updated data from server
+        // Refresh all data after password rejection
+        loadUsers()
+        loadPasswords()
       }
     } catch (error) {
       console.error('Error rejecting password:', error)
@@ -305,13 +308,9 @@ export default function AdminPage() {
       })
       const data = await response.json()
       if (data.success) {
-        // Update password state to no_password
-        setPasswords(prev => prev.map(p =>
-          p.email === email
-            ? { ...p, status: 'no_password', revokedAt: new Date().toISOString(), revokedBy: currentUser?.email || 'admin' }
-            : p
-        ))
-        loadPasswords() // Refresh to get updated data from server
+        // Refresh all data after password revocation
+        loadUsers()
+        loadPasswords()
       }
     } catch (error) {
       console.error('Error revoking password:', error)
@@ -392,29 +391,10 @@ export default function AdminPage() {
 
       if (result.success) {
         setGeneratedPassword({ email: result.email, password: result.password })
-        // Update password state to pending approval
-        setPasswords(prev => {
-          const existing = prev.find(p => p.email === email)
-          if (existing) {
-            return prev.map(p => p.email === email
-              ? { ...p, status: 'pending_approval', password: result.password, generatedAt: new Date().toISOString(), approvedAt: null, approvedBy: null }
-              : p
-            )
-          } else {
-            return [...prev, {
-              email: result.email,
-              status: 'pending_approval',
-              password: result.password,
-              generatedAt: new Date().toISOString(),
-              approvedAt: null,
-              approvedBy: null,
-              revokedAt: null,
-              revokedBy: null
-            }]
-          }
-        })
-        loadUsers() // Refresh users to show updated password hash
-        loadPasswords() // Refresh password display
+        // Refresh all data after password generation
+        loadUsers()
+        loadPasswords()
+        alert(`Password generated for ${email}: ${result.password}`)
       } else {
         console.error('Error generating password:', result.error)
         alert('Error generating password: ' + result.error)
@@ -441,8 +421,16 @@ export default function AdminPage() {
       body: JSON.stringify({ email })
     })
       .then(res => res.json())
-      .then(() => loadPasswords())
-      .catch(() => loadPasswords())
+      .then(() => {
+        // Refresh all data after password deletion
+        loadUsers()
+        loadPasswords()
+      })
+      .catch(() => {
+        // Refresh all data even on error
+        loadUsers()
+        loadPasswords()
+      })
   }
 
   const resetPassword = async (email: string) => {
@@ -476,7 +464,9 @@ export default function AdminPage() {
       const result = await response.json()
       if (result.success) {
         alert(`Nueva contraseña generada para ${email}: ${result.password}`)
-        loadPasswords() // Refresh the password list
+        // Refresh all data after password reset
+        loadUsers()
+        loadPasswords()
       } else {
         alert('Error generando nueva contraseña: ' + result.error)
       }
@@ -529,6 +519,9 @@ export default function AdminPage() {
       if (data.success) {
         setUsers(data.users)
         console.log('User approved successfully')
+        // Refresh all data after approval
+        loadUsers()
+        loadPasswords()
       } else {
         console.error('Approval failed:', data.error)
         alert('Error approving user: ' + data.error)
@@ -562,6 +555,9 @@ export default function AdminPage() {
       const data = await response.json()
       if (data.success) {
         setUsers(data.users)
+        // Refresh all data after rejection
+        loadUsers()
+        loadPasswords()
       } else {
         alert('Error rejecting user: ' + data.error)
       }
@@ -594,6 +590,9 @@ export default function AdminPage() {
       const data = await response.json()
       if (data.success) {
         setUsers(data.users)
+        // Refresh all data after blocking
+        loadUsers()
+        loadPasswords()
       } else {
         alert('Error blocking user: ' + data.error)
       }
