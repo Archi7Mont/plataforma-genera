@@ -44,3 +44,5 @@ export function calcularPuntajeTotal(dims: Dimension[], respuestas: Record<strin
   return max > 0 ? (total / max) * 100 : 0;
 }
 
+
+
