@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { store } from '@/lib/store';
+import { prisma } from '@/lib/db';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -65,31 +65,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
-    // Force KV in production - check if we have the right env vars
-    if (process.env.NODE_ENV === 'production') {
-      console.log('Production mode - checking KV config...');
-      console.log('KV_REST_API_URL:', process.env.KV_REST_API_URL ? 'SET' : 'NOT SET');
-      console.log('KV_REST_API_TOKEN:', process.env.KV_REST_API_TOKEN ? 'SET' : 'NOT SET');
+    // Check if DATABASE_URL is configured in production
+    if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL environment variable is required in production');
     }
 
-    const users = await store.getJson<any[]>('users', []);
-    console.log('Current users count:', users.length);
-    console.log('Looking for user with email:', emailNormalized);
-    console.log('Available user emails:', users.map(u => u.email));
+    // Find user in database
+    const user = await prisma.user.findUnique({
+      where: { email: emailNormalized }
+    });
 
-    // Find user
-    const userIndex = users.findIndex(user => (user.email || '').toLowerCase() === emailNormalized);
-
-    if (userIndex === -1) {
-      console.log('User not found. Available users:', users.map(u => ({ email: u.email, status: u.status })));
+    if (!user) {
+      console.log('User not found. Email:', emailNormalized);
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const user = users[userIndex];
     console.log('Found user:', user.email, 'Status:', user.status);
 
     // Check if user is approved
-    if (user.status !== 'approved') {
+    if (user.status !== 'APPROVED') {
       return NextResponse.json({ error: 'User must be approved before generating password' }, { status: 400 });
     }
 
@@ -97,44 +91,51 @@ export async function POST(request: NextRequest) {
     const password = generateSecurePassword();
     const passwordHash = simpleHash(password);
 
-    // Update user with password hash
-    users[userIndex].passwordHash = passwordHash;
-    console.log('Updated user:', users[userIndex].email, 'with password hash');
-    
-    // Save back
-    console.log('Saving users to store...');
-    await store.setJson('users', users);
-    console.log('Users saved successfully');
+    // Update user with password hash using transaction
+    await prisma.$transaction(async (tx) => {
+      // Update user with password hash
+      await tx.user.update({
+        where: { id: user.id },
+        data: { passwordHash }
+      });
 
-    // Record plain password for admin display (transient log)
-    const currentTimestamp = new Date().toISOString();
-    let pwList = await store.getJson<Array<{ email: string; plainPassword: string; generatedAt: string }>>('generated_passwords', []);
-    const idx = pwList.findIndex(p => (p.email || '').toLowerCase() === emailNormalized);
-    const entry = { email: emailNormalized, plainPassword: password, generatedAt: currentTimestamp };
-    if (idx >= 0) pwList[idx] = entry; else pwList.push(entry);
-    console.log('Saving password list to store...');
-    await store.setJson('generated_passwords', pwList);
-    console.log('Password list saved successfully');
+      // Record plain password for admin display
+      await tx.password.upsert({
+        where: { email: emailNormalized },
+        update: {
+          plainPassword: password,
+          generatedAt: new Date(),
+        },
+        create: {
+          id: `pwd-${Date.now()}`,
+          email: emailNormalized,
+          plainPassword: password,
+          generatedAt: new Date(),
+        }
+      });
+    });
+
+    console.log('Password generated successfully for:', emailNormalized);
 
     // Verify data was saved
-    const verifyUsers = await store.getJson<any[]>('users', []);
-    const verifyPasswords = await store.getJson<any[]>('generated_passwords', []);
+    const verifyUsers = await prisma.user.findMany();
+    const verifyPasswords = await prisma.password.findMany();
     console.log('Verification - Users count after save:', verifyUsers.length);
     console.log('Verification - Passwords count after save:', verifyPasswords.length);
 
     // Ensure the user still exists after password generation
-    const userStillExists = verifyUsers.find(u => (u.email || '').toLowerCase() === emailNormalized);
+    const userStillExists = verifyUsers.find(u => u.email.toLowerCase() === emailNormalized);
     if (!userStillExists) {
       console.error('CRITICAL: User disappeared after password generation!');
-      return NextResponse.json({ 
-        success: false, 
-        error: 'User data inconsistency detected' 
+      return NextResponse.json({
+        success: false,
+        error: 'User data inconsistency detected'
       }, { status: 500 });
     }
 
     // Return success with password
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       password: password,
       email: emailNormalized,
       debug: {

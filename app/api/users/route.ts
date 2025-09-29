@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { store } from '@/lib/store';
+import { prisma } from '@/lib/db';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -9,29 +9,37 @@ interface User {
   email: string;
   fullName: string;
   organization: string;
-  position: string;
-  status: 'pending' | 'approved' | 'rejected' | 'blocked' | 'deleted';
-  role: 'admin' | 'user';
+  position: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'BLOCKED' | 'DELETED';
+  role: 'ADMIN' | 'USER';
   passwordHash: string | null;
-  createdAt: string;
-  lastLoginAt: string | null;
+  createdAt: Date;
+  lastLoginAt: Date | null;
   loginCount: number;
   isActive: boolean;
-  approvedBy?: string | null;
-  approvedAt?: string | null;
-  rejectedBy?: string | null;
-  rejectedAt?: string | null;
-  blockedBy?: string | null;
-  blockedAt?: string | null;
-  unblockedBy?: string | null;
-  unblockedAt?: string | null;
-  deletedBy?: string | null;
-  deletedAt?: string | null;
+  approvedBy: string | null;
+  approvedAt: Date | null;
+  rejectedBy: string | null;
+  rejectedAt: Date | null;
+  blockedBy: string | null;
+  blockedAt: Date | null;
+  unblockedBy: string | null;
+  unblockedAt: Date | null;
+  deletedBy: string | null;
+  deletedAt: Date | null;
+  requestedIndexAccess: string | null;
 }
 
 export async function GET() {
   try {
-    const users = await store.getJson<User[]>('users', []);
+    // Check if DATABASE_URL is configured in production
+    if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL environment variable is required in production');
+    }
+
+    const users = await prisma.user.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
     return NextResponse.json({ success: true, users });
   } catch (error) {
     console.error('Error reading users:', error);
@@ -93,102 +101,146 @@ export async function POST(request: NextRequest) {
       deletedBy?: string;
     };
 
-    const users: User[] = await store.getJson<User[]>('users', []);
-
-    const currentTimestamp = new Date().toISOString();
+    const currentTimestamp = new Date();
 
     if (action === 'add') {
       if (!email) {
         return NextResponse.json({ success: false, error: 'Email is required' }, { status: 400 });
       }
-      const exists = users.find(u => u.email === email);
+
+      const exists = await prisma.user.findUnique({
+        where: { email }
+      });
+
       if (exists) {
         return NextResponse.json({ success: false, error: 'User with this email already exists' }, { status: 400 });
       }
-      const newUser: User = {
-        id: Date.now().toString(),
-        email,
-        fullName: '',
-        organization: '',
-        position: '',
-        status: 'pending',
-        role: 'user',
-        passwordHash: null,
-        createdAt: currentTimestamp,
-        lastLoginAt: null,
-        loginCount: 0,
-        isActive: true,
-        approvedBy: null,
-        approvedAt: null,
-      };
-      users.push(newUser);
-      await store.setJson('users', users);
-      return NextResponse.json({ success: true, users });
+
+      const newUser = await prisma.user.create({
+        data: {
+          id: `user-${Date.now()}`,
+          email,
+          fullName: '',
+          organization: '',
+          position: '',
+          status: 'PENDING',
+          role: 'USER',
+          passwordHash: null,
+          isActive: true,
+        }
+      });
+
+      return NextResponse.json({ success: true, users: [newUser] });
     }
 
     // For actions that require an existing user
-    console.log('Looking for user with ID:', userId);
-    console.log('Available user IDs:', users.map(u => u.id));
-    console.log('User ID types:', users.map(u => typeof u.id));
+    const user = await prisma.user.findUnique({
+      where: { id: userId as string }
+    });
 
-    const index = users.findIndex(u => u.id === (userId as string));
-    if (index === -1) {
+    if (!user) {
       console.log('User not found. UserId received:', userId, 'Type:', typeof userId);
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
+
     const actor = currentUserEmail || approvedBy || rejectedBy || blockedBy || unblockedBy || deletedBy || 'admin';
 
+    let updatedUser;
     switch (action) {
       case 'approve':
-        users[index].status = 'approved';
-        users[index].isActive = true;
-        users[index].approvedBy = actor;
-        users[index].approvedAt = currentTimestamp;
+        updatedUser = await prisma.user.update({
+          where: { id: userId as string },
+          data: {
+            status: 'APPROVED',
+            isActive: true,
+            approvedBy: actor,
+            approvedAt: currentTimestamp,
+            rejectedBy: null,
+            rejectedAt: null,
+            blockedBy: null,
+            blockedAt: null,
+            unblockedBy: null,
+            unblockedAt: null,
+            deletedBy: null,
+            deletedAt: null,
+          }
+        });
         break;
       case 'reject':
-        users[index].status = 'rejected';
-        users[index].isActive = false;
-        (users[index] as any).rejectedBy = actor;
-        (users[index] as any).rejectedAt = currentTimestamp;
+        updatedUser = await prisma.user.update({
+          where: { id: userId as string },
+          data: {
+            status: 'REJECTED',
+            isActive: false,
+            rejectedBy: actor,
+            rejectedAt: currentTimestamp,
+            blockedBy: null,
+            blockedAt: null,
+            unblockedBy: null,
+            unblockedAt: null,
+            deletedBy: null,
+            deletedAt: null,
+          }
+        });
         break;
       case 'block':
-        users[index].status = 'blocked';
-        users[index].isActive = false;
-        (users[index] as any).blockedBy = actor;
-        (users[index] as any).blockedAt = currentTimestamp;
+        updatedUser = await prisma.user.update({
+          where: { id: userId as string },
+          data: {
+            status: 'BLOCKED',
+            isActive: false,
+            blockedBy: actor,
+            blockedAt: currentTimestamp,
+            unblockedBy: null,
+            unblockedAt: null,
+            deletedBy: null,
+            deletedAt: null,
+          }
+        });
         break;
       case 'unblock':
-        users[index].status = 'approved';
-        users[index].isActive = true;
-        (users[index] as any).unblockedBy = actor;
-        (users[index] as any).unblockedAt = currentTimestamp;
+        updatedUser = await prisma.user.update({
+          where: { id: userId as string },
+          data: {
+            status: 'APPROVED',
+            isActive: true,
+            unblockedBy: actor,
+            unblockedAt: currentTimestamp,
+            blockedBy: null,
+            blockedAt: null,
+            deletedBy: null,
+            deletedAt: null,
+          }
+        });
         break;
       case 'delete':
-        users[index].status = 'deleted';
-        users[index].isActive = false;
-        (users[index] as any).deletedBy = actor;
-        (users[index] as any).deletedAt = currentTimestamp;
-        await store.setJson('users', users);
-        return NextResponse.json({ success: true, users });
+        updatedUser = await prisma.user.update({
+          where: { id: userId as string },
+          data: {
+            status: 'DELETED',
+            isActive: false,
+            deletedBy: actor,
+            deletedAt: currentTimestamp,
+          }
+        });
+        break;
       default:
         return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });
     }
 
-    await store.setJson('users', users);
-    
-    // Verify the user was actually updated
-    const verifyUsers = await store.getJson<User[]>('users', []);
-    const updatedUser = verifyUsers.find(u => u.id === userId);
-    
+    const allUsers = await prisma.user.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+
     console.log('User update verification:', {
       userId,
       action,
       userFound: !!updatedUser,
       userStatus: updatedUser?.status,
-      totalUsers: verifyUsers.length
+      totalUsers: allUsers.length
     });
-    
-    return NextResponse.json({ success: true, users: verifyUsers });
+
+    return NextResponse.json({ success: true, users: allUsers });
   } catch (error) {
     console.error('Error updating user:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });

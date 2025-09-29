@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import fs from 'fs'
-import path from 'path'
+import { prisma } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
-
-function getRuntimeDataDir() {
-  const repoDataDir = path.join(process.cwd(), 'data')
-  const runtimeDataDir = process.env.VERCEL ? path.join('/tmp', 'data') : repoDataDir
-  if (!fs.existsSync(runtimeDataDir)) fs.mkdirSync(runtimeDataDir, { recursive: true })
-  return { repoDataDir, runtimeDataDir }
-}
-
-function writeJson(filePath: string, data: any) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2))
-}
 
 async function performReset(request: NextRequest) {
   // Optional protection via header or query secret
@@ -26,46 +14,48 @@ async function performReset(request: NextRequest) {
     }
   }
 
-  const { repoDataDir, runtimeDataDir } = getRuntimeDataDir()
-
-  const usersFile = path.join(runtimeDataDir, 'users.json')
-  const attemptsFile = path.join(runtimeDataDir, 'login_attempts.json')
-  const logsFile = path.join(runtimeDataDir, 'system_logs.json')
-  const passwordsFile = path.join(runtimeDataDir, 'generated_passwords.json')
-
-  const adminUser = {
-    id: '1',
-    email: 'admin@genera.com',
-    fullName: 'Administrator',
-    organization: 'Géner.A System',
-    position: 'System Administrator',
-    status: 'approved',
-    role: 'admin',
-    passwordHash: 'Admin1234!',
-    createdAt: '2024-09-24T15:52:00.000Z',
-    lastLoginAt: null,
-    loginCount: 0,
-    isActive: true,
-    approvedBy: 'system',
-    approvedAt: '2024-09-24T15:52:00.000Z'
+  // Check if DATABASE_URL is configured in production
+  if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL environment variable is required in production');
   }
 
-  writeJson(usersFile, [adminUser])
-  writeJson(attemptsFile, [])
-  writeJson(logsFile, [])
-  writeJson(passwordsFile, [])
+  // Use transaction to reset all data except admin
+  await prisma.$transaction(async (tx) => {
+    // Delete all users except admin
+    await tx.user.deleteMany({
+      where: {
+        email: {
+          not: 'admin@genera.com'
+        }
+      }
+    });
 
-  // Keep bundled seed in sync
-  try {
-    const repoUsersFile = path.join(repoDataDir, 'users.json')
-    const repoAttemptsFile = path.join(repoDataDir, 'login_attempts.json')
-    const repoLogsFile = path.join(repoDataDir, 'system_logs.json')
-    const repoPasswordsFile = path.join(repoDataDir, 'generated_passwords.json')
-    writeJson(repoUsersFile, [adminUser])
-    writeJson(repoAttemptsFile, [])
-    writeJson(repoLogsFile, [])
-    writeJson(repoPasswordsFile, [])
-  } catch {}
+    // Delete all passwords
+    await tx.password.deleteMany();
+
+    // Reset admin user if it doesn't exist or needs reset
+    const adminExists = await tx.user.findUnique({
+      where: { email: 'admin@genera.com' }
+    });
+
+    if (!adminExists) {
+      await tx.user.create({
+        data: {
+          id: 'admin-1',
+          email: 'admin@genera.com',
+          fullName: 'Administrator',
+          organization: 'Géner.A System',
+          position: 'System Administrator',
+          status: 'APPROVED',
+          role: 'ADMIN',
+          passwordHash: 'Admin1234!',
+          isActive: true,
+          approvedBy: 'system',
+          approvedAt: new Date(),
+        }
+      });
+    }
+  });
 
   return NextResponse.json({ success: true })
 }

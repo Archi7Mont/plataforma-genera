@@ -15,37 +15,37 @@ interface User {
   email: string
   fullName: string
   organization: string
-  position: string
-  status: "pending" | "approved" | "rejected" | "blocked" | "deleted"
-  role: "admin" | "user"
+  position: string | null
+  status: "PENDING" | "APPROVED" | "REJECTED" | "BLOCKED" | "DELETED"
+  role: "ADMIN" | "USER"
   passwordHash: string | null
   createdAt: string
   lastLoginAt: string | null
   loginCount: number
   isActive: boolean
-  approvedBy?: string | null
-  approvedAt?: string | null
-  rejectedBy?: string | null
-  rejectedAt?: string | null
-  blockedBy?: string | null
-  blockedAt?: string | null
-  unblockedBy?: string | null
-  unblockedAt?: string | null
-  deletedBy?: string | null
-  deletedAt?: string | null
-  requestedIndexAccess?: string | null
+  approvedBy: string | null
+  approvedAt: string | null
+  rejectedBy: string | null
+  rejectedAt: string | null
+  blockedBy: string | null
+  blockedAt: string | null
+  unblockedBy: string | null
+  unblockedAt: string | null
+  deletedBy: string | null
+  deletedAt: string | null
+  requestedIndexAccess: string | null
 }
 
 interface PasswordState {
   email: string
-  status: 'no_password' | 'pending_approval' | 'active'
-  password?: string
-  plainPassword?: string
-  generatedAt?: string
-  approvedAt?: string | null
-  approvedBy?: string | null
-  revokedAt?: string | null
-  revokedBy?: string | null
+  status: 'pending_approval' | 'active'
+  password: string
+  plainPassword: string
+  generatedAt: string
+  approvedAt: string | null
+  approvedBy: string | null
+  revokedAt: string | null
+  revokedBy: string | null
 }
 
 export default function AdminPage() {

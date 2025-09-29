@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { store } from '@/lib/store'
+import { prisma } from '@/lib/db'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -35,31 +35,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
+    // Check if DATABASE_URL is configured in production
+    if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL environment variable is required in production');
+    }
+
     const { email, approvedBy } = await request.json()
 
     if (!email || !approvedBy) {
       return NextResponse.json({ error: 'Email and approvedBy are required' }, { status: 400 })
     }
 
-    // Get current password states
-    let passwords = await store.getJson<Array<{ email: string; plainPassword: string; generatedAt: string; approvedAt?: string; approvedBy?: string }>>('generated_passwords', [])
+    // Update password in database
+    const updatedPassword = await prisma.password.update({
+      where: { email },
+      data: {
+        approvedAt: new Date(),
+        approvedBy
+      }
+    });
 
-    // Find and approve the password
-    const passwordIndex = passwords.findIndex(p => p.email === email)
-    if (passwordIndex === -1) {
-      return NextResponse.json({ error: 'Password not found' }, { status: 404 })
-    }
-
-    // Update password state
-    passwords[passwordIndex].approvedAt = new Date().toISOString()
-    passwords[passwordIndex].approvedBy = approvedBy
-
-    // Save updated passwords
-    await store.setJson('generated_passwords', passwords)
-
-    return NextResponse.json({ success: true, message: 'Password approved successfully' })
+    return NextResponse.json({ success: true, message: 'Password approved successfully', password: updatedPassword })
   } catch (error) {
     console.error('Error approving password:', error)
+    if (error instanceof Error && error.message.includes('not found')) {
+      return NextResponse.json({ error: 'Password not found' }, { status: 404 })
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -1,67 +1,42 @@
 import { NextResponse } from 'next/server'
-import { store } from '@/lib/store'
+import { prisma } from '@/lib/db'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    // Check KV configuration
-    const isKvConfigured = () => {
-      // Check if we have valid KV credentials (not just "SET" placeholders)
-      const url = process.env.KV_REST_API_URL;
-      const token = process.env.KV_REST_API_TOKEN;
+    // Check DATABASE_URL configuration
+    const dbConfigured = process.env.DATABASE_URL ? 'CONFIGURED' : 'NOT SET';
 
-      // Must have both URL and token, and URL must be a proper HTTPS URL
-      if (!url || !token || url === 'SET' || token === 'SET' || !url.startsWith('https://')) {
-        return false;
-      }
-
-      return true;
-    };
-
-    // Test KV connection first
-    let kvTestResult = null;
-    if (isKvConfigured()) {
-      try {
-        const { kv } = await import('@vercel/kv');
-        await kv.set('test_key', 'test_value');
-        await kv.del('test_key'); // Clean up
-        kvTestResult = 'SUCCESS';
-      } catch (kvError) {
-        kvTestResult = `ERROR: ${String(kvError)}`;
-      }
+    // Test database connection
+    let dbTestResult = null;
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      dbTestResult = 'SUCCESS';
+    } catch (dbError) {
+      dbTestResult = `ERROR: ${String(dbError)}`;
     }
 
-    const users = await store.getJson<any[]>('users', []);
-    const passwords = await store.getJson<any[]>('generated_passwords', []);
-    const loginAttempts = await store.getJson<any[]>('login_attempts', []);
-    const securityEvents = await store.getJson<any[]>('system_logs', []);
-    const questions = await store.getJson<any[]>('questions', []);
-    const passwordResetRequests = await store.getJson<any[]>('password_reset_requests', []);
+    const users = await prisma.user.findMany();
+    const passwords = await prisma.password.findMany();
 
     return NextResponse.json({
       success: true,
       mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
-      kvConfigured: isKvConfigured(),
-      kvTestResult,
+      dbConfigured: dbConfigured,
+      dbTestResult,
       envVars: {
         NODE_ENV: process.env.NODE_ENV,
-        KV_REST_API_URL: process.env.KV_REST_API_URL ? 'SET' : 'NOT SET',
-        KV_REST_API_TOKEN: process.env.KV_REST_API_TOKEN ? 'SET' : 'NOT SET',
-        UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL ? 'SET' : 'NOT SET',
-        UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN ? 'SET' : 'NOT SET',
-        KV_REST_API_KV_REST_API_URL: process.env.KV_REST_API_KV_REST_API_URL ? 'SET' : 'NOT SET',
-        KV_REST_API_KV_REST_API_TOKEN: process.env.KV_REST_API_KV_REST_API_TOKEN ? 'SET' : 'NOT SET',
-        KV_REST_API_KV_URL: process.env.KV_REST_API_KV_URL ? 'SET' : 'NOT SET',
+        DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET',
       },
       data: {
         usersCount: users.length,
         passwordsCount: passwords.length,
-        loginAttemptsCount: loginAttempts.length,
-        securityEventsCount: securityEvents.length,
-        questionsCount: questions.length,
-        passwordResetRequestsCount: passwordResetRequests.length,
+        loginAttemptsCount: 0, // Not implemented in Postgres schema
+        securityEventsCount: 0, // Not implemented in Postgres schema
+        questionsCount: 0, // Not implemented in Postgres schema
+        passwordResetRequestsCount: 0, // Not implemented in Postgres schema
       },
       sampleData: {
         users: users.slice(0, 3), // Show first 3 users

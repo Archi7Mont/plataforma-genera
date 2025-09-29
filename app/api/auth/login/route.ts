@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { store } from '@/lib/store';
+import { prisma } from '@/lib/db';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -64,32 +64,53 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Read users from shared store (KV if configured, FS fallback)
-    let users = await store.getJson<any[]>('users', []);
-    // Ensure admin exists
-    if (!users.some(u => (u.email || '').toLowerCase() === 'admin@genera.com')) {
-      const nowIso = new Date().toISOString();
-      users.push({
-        id: '1',
-        email: 'admin@genera.com',
-        fullName: 'Administrator',
-        organization: 'Géner.A System',
-        position: 'System Administrator',
-        status: 'approved',
-        role: 'admin',
-        passwordHash: 'Admin1234!',
-        createdAt: nowIso,
-        lastLoginAt: null,
-        loginCount: 0,
-        isActive: true,
-        approvedBy: 'system',
-        approvedAt: nowIso
-      });
-      await store.setJson('users', users);
+    // Check if DATABASE_URL is configured in production
+    if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL environment variable is required in production');
     }
-    
-    // Find user
-    const user = users.find((u: any) => (u.email || '').toLowerCase() === sanitizedEmail);
+
+    // Find user in database
+    const user = await prisma.user.findUnique({
+      where: { email: sanitizedEmail }
+    });
+
+    // Create admin user if it doesn't exist
+    if (!user && sanitizedEmail === 'admin@genera.com') {
+      const adminUser = await prisma.user.upsert({
+        where: { email: 'admin@genera.com' },
+        update: {},
+        create: {
+          id: 'admin-1',
+          email: 'admin@genera.com',
+          fullName: 'Administrator',
+          organization: 'Géner.A System',
+          position: 'System Administrator',
+          status: 'APPROVED',
+          role: 'ADMIN',
+          passwordHash: 'Admin1234!',
+          isActive: true,
+          approvedBy: 'system',
+          approvedAt: new Date(),
+        }
+      });
+      return NextResponse.json({
+        success: true,
+        token: createJWT({
+          userId: adminUser.id,
+          email: sanitizedEmail,
+          isAdmin: true
+        }),
+        user: {
+          id: adminUser.id,
+          email: adminUser.email,
+          fullName: adminUser.fullName,
+          organization: adminUser.organization,
+          position: adminUser.position,
+          isAdmin: true,
+          status: adminUser.status
+        }
+      });
+    }
     
     // Do NOT auto-create users on login. Ask them to register instead.
     if (!user) {
@@ -138,12 +159,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Update user login info
-    const userIndex = users.findIndex(u => u.email === sanitizedEmail);
-    if (userIndex !== -1) {
-      users[userIndex].lastLoginAt = new Date().toISOString();
-      users[userIndex].loginCount = (users[userIndex].loginCount || 0) + 1;
-      await store.setJson('users', users);
-    }
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        lastLoginAt: new Date(),
+        loginCount: { increment: 1 }
+      }
+    });
 
     // Generate JWT token
     const token = createJWT({

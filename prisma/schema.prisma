@@ -1,0 +1,65 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String   @id @default(cuid())
+  email                 String   @unique
+  fullName              String
+  organization          String
+  position              String?
+  status                UserStatus @default(PENDING)
+  role                  UserRole @default(USER)
+  passwordHash          String?
+  createdAt             DateTime @default(now())
+  lastLoginAt           DateTime?
+  loginCount            Int      @default(0)
+  isActive              Boolean  @default(true)
+  approvedBy            String?
+  approvedAt            DateTime?
+  rejectedBy            String?
+  rejectedAt            DateTime?
+  blockedBy             String?
+  blockedAt             DateTime?
+  unblockedBy           String?
+  unblockedAt           DateTime?
+  deletedBy             String?
+  deletedAt             DateTime?
+  requestedIndexAccess  String?
+
+  @@map("users")
+}
+
+model Password {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  plainPassword String
+  generatedAt   DateTime @default(now())
+  approvedAt    DateTime?
+  approvedBy    String?
+  revokedAt     DateTime?
+  revokedBy     String?
+
+  @@map("passwords")
+}
+
+enum UserStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  BLOCKED
+  DELETED
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}

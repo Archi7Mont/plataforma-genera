@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { store } from '@/lib/store';
+import { prisma } from '@/lib/db';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -9,60 +9,69 @@ export async function POST(request: NextRequest) {
     const { email, fullName = '', organization = '', requestedIndexAccess = 'General' } = await request.json();
     const emailNormalized = String(email || '').trim().toLowerCase();
     
+    // Check if DATABASE_URL is configured in production
+    if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL environment variable is required in production');
+    }
+
     if (!emailNormalized) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
-    
-    let users = await store.getJson<any[]>('users', []);
-    
+
     // Check if user already exists
-    const existingUser = users.find((user: any) => (user.email || '').toLowerCase() === emailNormalized);
-    if (existingUser) {
-      // Always accept re-registration for any non-admin user: reset to pending
-      if ((existingUser.email || '').toLowerCase() !== 'admin@genera.com') {
-        existingUser.email = emailNormalized;
-        existingUser.fullName = String(fullName || '').trim();
-        existingUser.organization = String(organization || '').trim();
-        existingUser.status = 'pending';
-        existingUser.role = 'user';
-        existingUser.isActive = true;
-        existingUser.passwordHash = null;
-        existingUser.approvedBy = null;
-        existingUser.approvedAt = null;
-        existingUser.rejectedBy = null;
-        existingUser.rejectedAt = null;
-        existingUser.blockedBy = null;
-        existingUser.blockedAt = null;
-        existingUser.requestedIndexAccess = String(requestedIndexAccess || 'General').trim();
-        await store.setJson('users', users);
-        return NextResponse.json({ success: true, user: existingUser, users });
-      }
+    const existingUser = await prisma.user.findUnique({
+      where: { email: emailNormalized }
+    });
+
+    if (existingUser && existingUser.email.toLowerCase() === 'admin@genera.com') {
       return NextResponse.json({ error: 'User already exists' }, { status: 400 });
     }
-    
+
+    if (existingUser) {
+      // Update existing non-admin user to pending status
+      const updatedUser = await prisma.user.update({
+        where: { email: emailNormalized },
+        data: {
+          fullName: String(fullName || '').trim(),
+          organization: String(organization || '').trim(),
+          status: 'PENDING',
+          role: 'USER',
+          isActive: true,
+          passwordHash: null,
+          approvedBy: null,
+          approvedAt: null,
+          rejectedBy: null,
+          rejectedAt: null,
+          blockedBy: null,
+          blockedAt: null,
+          unblockedBy: null,
+          unblockedAt: null,
+          deletedBy: null,
+          deletedAt: null,
+          requestedIndexAccess: String(requestedIndexAccess || 'General').trim()
+        }
+      });
+
+      return NextResponse.json({ success: true, user: updatedUser, users: [updatedUser] });
+    }
+
     // Create new user
-    const newUser = {
-      id: Date.now().toString(),
-      email: emailNormalized,
-      fullName: String(fullName || '').trim(),
-      organization: String(organization || '').trim(),
-      position: '',
-      status: 'pending',
-      role: 'user',
-      passwordHash: null,
-      createdAt: new Date().toISOString(),
-      lastLoginAt: null,
-      loginCount: 0,
-      isActive: true,
-      approvedBy: null,
-      approvedAt: null,
-      requestedIndexAccess: String(requestedIndexAccess || 'General').trim()
-    };
-    
-    users.push(newUser);
-    await store.setJson('users', users);
-    
-    return NextResponse.json({ success: true, user: newUser, users });
+    const newUser = await prisma.user.create({
+      data: {
+        id: `user-${Date.now()}`,
+        email: emailNormalized,
+        fullName: String(fullName || '').trim(),
+        organization: String(organization || '').trim(),
+        position: '',
+        status: 'PENDING',
+        role: 'USER',
+        passwordHash: null,
+        isActive: true,
+        requestedIndexAccess: String(requestedIndexAccess || 'General').trim()
+      }
+    });
+
+    return NextResponse.json({ success: true, user: newUser, users: [newUser] });
   } catch (error) {
     console.error('Error adding user:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
