@@ -32,8 +32,7 @@ interface User {
 
 export async function GET() {
   // During build time, return static response to prevent database access
-  if (process.env.NEXT_PHASE === 'phase-production-build' ||
-      (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL)) {
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
     return new Response(JSON.stringify({
       success: true,
       users: [{
@@ -50,6 +49,35 @@ export async function GET() {
         approvedBy: 'system',
         approvedAt: new Date().toISOString()
       }]
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // If DATABASE_URL is not configured in production, return demo data
+  if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+    console.log('DATABASE_URL not configured, returning demo users data');
+    return new Response(JSON.stringify({
+      success: true,
+      users: [
+        {
+          id: 'demo-admin',
+          email: 'admin@genera.com',
+          fullName: 'Administrator',
+          organization: 'Géner.A System',
+          position: 'System Administrator',
+          status: 'APPROVED',
+          role: 'ADMIN',
+          isActive: true,
+          loginCount: 0,
+          createdAt: new Date().toISOString(),
+          approvedBy: 'system',
+          approvedAt: new Date().toISOString()
+        }
+        // In a real implementation, you would store demo users in memory or localStorage
+        // For now, we'll return just the admin user
+      ]
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
