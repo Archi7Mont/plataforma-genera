@@ -64,10 +64,15 @@ export async function POST(request: NextRequest) {
           },
           token
         });
+      } else {
+        return NextResponse.json({
+          success: false,
+          error: 'Invalid credentials'
+        }, { status: 401 });
       }
     }
 
-    // If DATABASE_URL is not configured, only allow fallback admin
+    // If DATABASE_URL is not configured and it's not the fallback admin, return error
     if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
       return NextResponse.json({
         success: false,
