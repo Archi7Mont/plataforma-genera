@@ -87,9 +87,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Simple JWT verification with better error handling
+    console.log('=== API AUTH DEBUG ===');
+    console.log('Token received:', token ? token.substring(0, 50) + '...' : 'null');
+    console.log('Token length:', token ? token.length : 0);
+
     const parts = token.split('.');
+    console.log('Token parts:', parts.length);
+
     if (parts.length !== 3) {
-      console.error('Invalid token format:', token.substring(0, 50) + '...');
+      console.error('Invalid token format - wrong number of parts');
       return NextResponse.json({ success: false, error: 'Invalid token format' }, { status: 401 });
     }
 
@@ -99,19 +105,29 @@ export async function POST(request: NextRequest) {
       const base64Payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
       const paddedPayload = base64Payload + '='.repeat((4 - base64Payload.length % 4) % 4);
       payload = JSON.parse(atob(paddedPayload));
+      console.log('Payload decoded successfully:', payload);
     } catch (error) {
       console.error('Token decode error:', error);
       return NextResponse.json({ success: false, error: 'Invalid token payload' }, { status: 401 });
     }
 
     const tokenTimestamp = Math.floor(Date.now() / 1000);
+    console.log('Current timestamp:', tokenTimestamp);
+    console.log('Token expiration:', payload.exp);
+    console.log('Token expired:', payload.exp && payload.exp < tokenTimestamp);
+
     if (payload.exp && payload.exp < tokenTimestamp) {
+      console.error('Token has expired');
       return NextResponse.json({ success: false, error: 'Token expired' }, { status: 401 });
     }
 
+    console.log('User is admin:', payload.isAdmin);
     if (!payload.isAdmin) {
+      console.error('User is not admin');
       return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
     }
+
+    console.log('Authentication successful');
 
     const body = await request.json();
     const {

@@ -495,6 +495,7 @@ export default function AdminPage() {
 
   const approveUser = async (userId: string) => {
     try {
+      console.log('=== APPROVAL DEBUG START ===')
       console.log('Approving user:', userId, 'by:', currentUser?.email, 'Type:', typeof userId)
       console.log('Current user state:', currentUser)
       console.log('Is admin state:', isAdmin)
@@ -502,16 +503,21 @@ export default function AdminPage() {
       const token = localStorage.getItem('auth_token')
       console.log('Token exists:', !!token)
       console.log('Token preview:', token ? token.substring(0, 50) + '...' : 'null')
+      console.log('Token full length:', token ? token.length : 0)
 
       if (!token) {
-        alert('Authentication required')
+        console.error('No token found in localStorage')
+        alert('Authentication required - no token found')
         return
       }
 
       if (!currentUser) {
+        console.error('Current user state is null')
         alert('User session expired. Please refresh the page.')
         return
       }
+
+      console.log('Sending approval request with token...')
 
       const response = await fetch('/api/users', {
         method: 'POST',
@@ -525,8 +531,16 @@ export default function AdminPage() {
           approvedBy: currentUser?.email || 'admin'
         })
       })
+
+      console.log('Response status:', response.status)
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()))
+
       const data = await response.json()
-      console.log('Approval response:', data)
+      console.log('=== APPROVAL RESPONSE ===')
+      console.log('Response data:', data)
+      console.log('Response success:', data.success)
+      console.log('Response error:', data.error)
+
       if (data.success) {
         setUsers(data.users)
         console.log('User approved successfully')
@@ -534,7 +548,7 @@ export default function AdminPage() {
         loadUsers()
         loadPasswords()
       } else {
-        console.error('Approval failed:', data.error)
+        console.error('Approval failed with error:', data.error)
         alert('Error approving user: ' + data.error)
       }
     } catch (error) {
