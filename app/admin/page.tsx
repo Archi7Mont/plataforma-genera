@@ -165,7 +165,7 @@ export default function AdminPage() {
       }
 
       // Debug pending users specifically
-      const pendingUsers = usersArray.filter((user: any) => user.status === 'pending')
+      const pendingUsers = usersArray.filter((user: any) => user.status === 'PENDING')
       console.log('Pending users found:', pendingUsers.length)
       console.log('Pending users:', pendingUsers.map((u: any) => ({ email: u.email, fullName: u.fullName, status: u.status })))
 
@@ -816,9 +816,9 @@ export default function AdminPage() {
               {/* Pending Users */}
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-gray-800">Usuarios Pendientes de Aprobación</h3>
-                {users && Array.isArray(users) && users.filter((user: any) => user.status === 'pending').length > 0 ? (
+                {users && Array.isArray(users) && users.filter((user: any) => user.status === 'PENDING').length > 0 ? (
                   <div className="space-y-3">
-                    {users && Array.isArray(users) && users.filter((user: any) => user.status === 'pending').map((user: any) => (
+                    {users && Array.isArray(users) && users.filter((user: any) => user.status === 'PENDING').map((user: any) => (
                       <div key={user.id} className="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
@@ -866,9 +866,9 @@ export default function AdminPage() {
               {/* Approved Users with Password States */}
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-gray-800">Usuarios Aprobados</h3>
-                {users && Array.isArray(users) && users.filter((user: any) => user.status === 'approved').length > 0 ? (
+                {users && Array.isArray(users) && users.filter((user: any) => user.status === 'APPROVED').length > 0 ? (
                   <div className="space-y-4">
-                    {users && Array.isArray(users) && users.filter((user: any) => user.status === 'approved').map((user: any) => {
+                    {users && Array.isArray(users) && users.filter((user: any) => user.status === 'APPROVED').map((user: any) => {
                       const passwordState = passwords.find(p => p.email === user.email)
                       return (
                         <div key={user.id} className="border border-green-200 rounded-lg overflow-hidden">
@@ -980,9 +980,9 @@ export default function AdminPage() {
               {/* Blocked Users */}
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-gray-800">Usuarios Bloqueados</h3>
-                {users && Array.isArray(users) && users.filter((user: any) => user.status === 'blocked').length > 0 ? (
+                {users && Array.isArray(users) && users.filter((user: any) => user.status === 'BLOCKED').length > 0 ? (
                   <div className="space-y-3">
-                    {users && Array.isArray(users) && users.filter((user: any) => user.status === 'blocked').map((user: any) => (
+                    {users && Array.isArray(users) && users.filter((user: any) => user.status === 'BLOCKED').map((user: any) => (
                       <div key={user.id} className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-lg">
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{user.email}</p>
@@ -1018,9 +1018,9 @@ export default function AdminPage() {
               {/* Rejected Users */}
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-gray-800">Usuarios Rechazados</h3>
-                {users && Array.isArray(users) && users.filter((user: any) => user.status === 'rejected').length > 0 ? (
+                {users && Array.isArray(users) && users.filter((user: any) => user.status === 'REJECTED').length > 0 ? (
                   <div className="space-y-3">
-                    {users && Array.isArray(users) && users.filter((user: any) => user.status === 'rejected').map((user: any) => (
+                    {users && Array.isArray(users) && users.filter((user: any) => user.status === 'REJECTED').map((user: any) => (
                       <div key={user.id} className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{user.email}</p>
@@ -1056,9 +1056,9 @@ export default function AdminPage() {
               {/* Deleted Users */}
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-gray-800">Usuarios Eliminados</h3>
-                {users && Array.isArray(users) && users.filter((user: any) => user.status === 'deleted').length > 0 ? (
+                {users && Array.isArray(users) && users.filter((user: any) => user.status === 'DELETED').length > 0 ? (
                   <div className="space-y-3">
-                    {users && Array.isArray(users) && users.filter((user: any) => user.status === 'deleted').map((user: any) => (
+                    {users && Array.isArray(users) && users.filter((user: any) => user.status === 'DELETED').map((user: any) => (
                       <div key={user.id} className="flex items-center justify-between p-4 bg-gray-100 border border-gray-300 rounded-lg">
                         <div className="flex-1">
                           <p className="font-medium text-gray-500 line-through">{user.email}</p>
