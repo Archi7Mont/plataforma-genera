@@ -763,9 +763,10 @@ export default function AdminPage() {
             </Button>
             <Button
               onClick={() => {
+                // Use correct status value casing: "PENDING" instead of "pending"
                 console.log('Current users state:', users)
-                console.log('Pending users in state:', users?.filter(u => u.status === 'pending'))
-                alert(`Total users: ${users?.length || 0}, Pending: ${users?.filter(u => u.status === 'pending').length || 0}`)
+                console.log('Pending users in state:', users?.filter(u => u.status === 'PENDING'))
+                alert(`Total users: ${users?.length || 0}, Pending: ${users?.filter(u => u.status === 'PENDING').length || 0}`)
               }}
               variant="outline"
               size="sm"
@@ -785,8 +786,8 @@ export default function AdminPage() {
             <div className="mt-2 p-3 bg-gray-50 rounded-lg">
               <p className="text-sm text-gray-600">
                 <strong>Total usuarios:</strong> {Array.isArray(users) ? users.length : 0} | 
-                <strong> Pendientes:</strong> {Array.isArray(users) ? users.filter(u => u.status === 'pending').length : 0} | 
-                <strong> Aprobados:</strong> {Array.isArray(users) ? users.filter(u => u.status === 'approved').length : 0}
+                <strong> Pendientes:</strong> {Array.isArray(users) ? users.filter(u => u.status === 'PENDING').length : 0} |
+                <strong> Aprobados:</strong> {Array.isArray(users) ? users.filter(u => u.status === 'APPROVED').length : 0}
               </p>
               <div className="mt-2">
                 <Button
@@ -921,9 +922,6 @@ export default function AdminPage() {
                                 <div className="flex items-center gap-2">
                                   {passwordState ? (
                                     <>
-                                      {passwordState.status === 'no_password' && (
-                                        <Badge variant="outline" className="text-gray-600">Sin contraseña</Badge>
-                                      )}
                                       {passwordState.status === 'pending_approval' && (
                                         <Badge variant="outline" className="text-yellow-600">Pendiente de aprobación</Badge>
                                       )}
