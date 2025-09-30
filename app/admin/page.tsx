@@ -519,11 +519,26 @@ export default function AdminPage() {
 
       console.log('Sending approval request with token...')
 
+      // Double-check token right before making request
+      const currentToken = localStorage.getItem('auth_token')
+      console.log('Token check right before fetch:', !!currentToken)
+      if (!currentToken) {
+        console.error('TOKEN LOST! Token was present earlier but now missing')
+        alert('Authentication token lost. Please refresh the page.')
+        return
+      }
+
+      console.log('Making fetch request to /api/users')
+      console.log('Request headers:', {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${currentToken ? currentToken.substring(0, 20) + '...' : 'MISSING'}`
+      })
+
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${currentToken}`
         },
         body: JSON.stringify({
           action: 'approve',
@@ -532,7 +547,7 @@ export default function AdminPage() {
         })
       })
 
-      console.log('Response status:', response.status)
+      console.log('Fetch request completed, status:', response.status)
       console.log('Response headers:', Object.fromEntries(response.headers.entries()))
 
       const data = await response.json()
