@@ -496,9 +496,20 @@ export default function AdminPage() {
   const approveUser = async (userId: string) => {
     try {
       console.log('Approving user:', userId, 'by:', currentUser?.email, 'Type:', typeof userId)
+      console.log('Current user state:', currentUser)
+      console.log('Is admin state:', isAdmin)
+
       const token = localStorage.getItem('auth_token')
+      console.log('Token exists:', !!token)
+      console.log('Token preview:', token ? token.substring(0, 50) + '...' : 'null')
+
       if (!token) {
         alert('Authentication required')
+        return
+      }
+
+      if (!currentUser) {
+        alert('User session expired. Please refresh the page.')
         return
       }
 

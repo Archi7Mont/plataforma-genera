@@ -86,21 +86,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
     }
 
-    // Simple JWT verification
+    // Simple JWT verification with better error handling
     const parts = token.split('.');
     if (parts.length !== 3) {
-      return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
+      console.error('Invalid token format:', token.substring(0, 50) + '...');
+      return NextResponse.json({ success: false, error: 'Invalid token format' }, { status: 401 });
     }
 
     let payload;
     try {
-      payload = JSON.parse(atob(parts[1]));
-    } catch {
-      return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
+      // Handle URL-safe base64 decoding
+      const base64Payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const paddedPayload = base64Payload + '='.repeat((4 - base64Payload.length % 4) % 4);
+      payload = JSON.parse(atob(paddedPayload));
+    } catch (error) {
+      console.error('Token decode error:', error);
+      return NextResponse.json({ success: false, error: 'Invalid token payload' }, { status: 401 });
     }
 
     const tokenTimestamp = Math.floor(Date.now() / 1000);
-    if (payload.exp < tokenTimestamp) {
+    if (payload.exp && payload.exp < tokenTimestamp) {
       return NextResponse.json({ success: false, error: 'Token expired' }, { status: 401 });
     }
 
