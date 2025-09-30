@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { demoStorage } from '@/lib/demo-storage';
 
 // Force dynamic rendering
 export const dynamic = 'force-static';
@@ -56,30 +55,18 @@ export async function GET() {
     });
   }
 
-  // Try to get users from database, with fallback to demo mode
-  try {
-    const users = await prisma.user.findMany({
-      orderBy: { createdAt: 'desc' }
-    });
+  // Get users from database
+  const users = await prisma.user.findMany({
+    orderBy: { createdAt: 'desc' }
+  });
 
-    return new Response(JSON.stringify({
-      success: true,
-      users: users
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (dbError) {
-    // If database operations fail, return demo data
-    console.log('Database operations failed, using demo mode for users:', dbError);
-    return new Response(JSON.stringify({
-      success: true,
-      users: demoStorage.getUsers()
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
+  return new Response(JSON.stringify({
+    success: true,
+    users: users
+  }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  });
 
   return new Response(JSON.stringify({
     success: false,
@@ -151,72 +138,31 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Email is required' }, { status: 400 });
       }
 
-      // Try database operations first, fallback to demo storage
-      try {
-        const exists = await prisma.user.findUnique({
-          where: { email }
-        });
+      // Check if user already exists
+      const exists = await prisma.user.findUnique({
+        where: { email }
+      });
 
-        if (exists) {
-          return NextResponse.json({ success: false, error: 'User with this email already exists' }, { status: 400 });
-        }
+      if (exists) {
+        return NextResponse.json({ success: false, error: 'User with this email already exists' }, { status: 400 });
+      }
 
-        const newUser = await prisma.user.create({
-          data: {
-            id: `user-${Date.now()}`,
-            email,
-            fullName: '',
-            organization: '',
-            position: '',
-            status: 'PENDING',
-            role: 'USER',
-            passwordHash: null,
-            isActive: true,
-          }
-        });
-
-        return NextResponse.json({ success: true, users: [newUser] });
-      } catch (dbError) {
-        // Fallback to demo storage
-        console.log('Database operations failed for user creation, using demo storage:', dbError);
-
-        // Check if user already exists in demo storage
-        const existingDemoUser = demoStorage.findUserByEmail(email);
-        if (existingDemoUser) {
-          return NextResponse.json({ success: false, error: 'User with this email already exists' }, { status: 400 });
-        }
-
-        const newDemoUser = {
-          id: `demo-user-${Date.now()}`,
+      // Create new user
+      const newUser = await prisma.user.create({
+        data: {
+          id: `user-${Date.now()}`,
           email,
           fullName: '',
           organization: '',
           position: '',
-          status: 'PENDING' as const,
-          role: 'USER' as const,
+          status: 'PENDING',
+          role: 'USER',
           passwordHash: null,
           isActive: true,
-          createdAt: new Date().toISOString(),
-          lastLoginAt: null,
-          loginCount: 0,
-          approvedBy: null,
-          approvedAt: null,
-          rejectedBy: null,
-          rejectedAt: null,
-          blockedBy: null,
-          blockedAt: null,
-          unblockedBy: null,
-          unblockedAt: null,
-          deletedBy: null,
-          deletedAt: null,
-          requestedIndexAccess: 'General'
-        };
+        }
+      });
 
-        // Add to demo storage
-        demoStorage.addUser(newDemoUser);
-
-        return NextResponse.json({ success: true, users: [newDemoUser] });
-      }
+      return NextResponse.json({ success: true, users: [newUser] });
     }
 
     // For actions that require an existing user

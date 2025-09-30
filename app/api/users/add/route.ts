@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { demoStorage } from '@/lib/demo-storage';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -26,39 +25,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // If DATABASE_URL is not configured in production, return success for demo purposes
-    if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
-      console.log('DATABASE_URL not configured, returning demo success for registration');
-      return NextResponse.json({
-        success: true,
-        user: {
-          id: `demo-user-${Date.now()}`,
-          email: emailNormalized,
-          fullName: String(fullName || '').trim(),
-          organization: String(organization || '').trim(),
-          position: '',
-          status: 'PENDING',
-          role: 'USER',
-          passwordHash: null,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          lastLoginAt: null,
-          loginCount: 0,
-          approvedBy: null,
-          approvedAt: null,
-          rejectedBy: null,
-          rejectedAt: null,
-          blockedBy: null,
-          blockedAt: null,
-          unblockedBy: null,
-          unblockedAt: null,
-          deletedBy: null,
-          deletedAt: null,
-          requestedIndexAccess: String(requestedIndexAccess || 'General').trim()
-        },
-        users: []
-      });
-    }
+    // Database is now properly configured, proceed with real database operations
 
     if (!emailNormalized) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
@@ -121,48 +88,8 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ success: true, user: newUser, users: [newUser] });
     } catch (dbError) {
-      // If database operations fail, fall back to demo mode
-      console.log('Database operations failed, using demo mode:', dbError);
-      // Check if user already exists in demo storage
-      const existingDemoUser = demoStorage.findUserByEmail(emailNormalized);
-      if (existingDemoUser) {
-        return NextResponse.json({ success: false, error: 'User with this email already exists' }, { status: 400 });
-      }
-
-      const demoUser = {
-        id: `demo-user-${Date.now()}`,
-        email: emailNormalized,
-        fullName: String(fullName || '').trim(),
-        organization: String(organization || '').trim(),
-        position: '',
-        status: 'PENDING' as const,
-        role: 'USER' as const,
-        passwordHash: null,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        lastLoginAt: null,
-        loginCount: 0,
-        approvedBy: null,
-        approvedAt: null,
-        rejectedBy: null,
-        rejectedAt: null,
-        blockedBy: null,
-        blockedAt: null,
-        unblockedBy: null,
-        unblockedAt: null,
-        deletedBy: null,
-        deletedAt: null,
-        requestedIndexAccess: String(requestedIndexAccess || 'General').trim()
-      };
-
-      // Add to demo storage
-      demoStorage.addUser(demoUser);
-
-      return NextResponse.json({
-        success: true,
-        user: demoUser,
-        users: [demoUser]
-      });
+      console.error('Database error:', dbError);
+      return NextResponse.json({ error: 'Database error occurred' }, { status: 500 });
     }
   } catch (error) {
     console.error('Error adding user:', error);
