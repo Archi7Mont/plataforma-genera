@@ -11,7 +11,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-i
 const FALLBACK_ADMIN = {
   email: 'admin@genera.com',
   // Default password: admin123 (you should change this)
-  passwordHash: '$2a$12$LQv3c1yqBwlFbRb.p6.7CeDzYa3zt2EiJrC2T1l9lKzK8QhP8l7e', // "admin123"
+  passwordHash: '$2b$12$5J5czcjGWix07Tn.FTfjTOFfGKE/W7efcSgKXyXjF2inCeT7Zm3KS', // "admin123"
   isAdmin: true,
   id: 'fallback-admin-1'
 };
