@@ -79,17 +79,34 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
+    // Check authentication with detailed logging
+    console.log('=== API AUTH DEBUG ===');
     const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '') || request.headers.get('x-auth-token');
+    const xAuthToken = request.headers.get('x-auth-token');
+
+    console.log('Auth header:', authHeader ? authHeader.substring(0, 50) + '...' : 'null');
+    console.log('X-Auth-Token header:', xAuthToken ? xAuthToken.substring(0, 50) + '...' : 'null');
+
+    let token = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.replace('Bearer ', '');
+      console.log('Token extracted from Authorization header');
+    } else if (xAuthToken) {
+      token = xAuthToken;
+      console.log('Token extracted from X-Auth-Token header');
+    }
+
+    console.log('Final token:', token ? token.substring(0, 50) + '...' : 'null');
+    console.log('Token length:', token ? token.length : 0);
+
     if (!token) {
+      console.error('No token found in headers');
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
     }
 
-    // Simple JWT verification with better error handling
-    console.log('=== API AUTH DEBUG ===');
-    console.log('Token received:', token ? token.substring(0, 50) + '...' : 'null');
-    console.log('Token length:', token ? token.length : 0);
+    // JWT verification
+    console.log('Token received for verification:', token.substring(0, 50) + '...');
+    console.log('Token length:', token.length);
 
     const parts = token.split('.');
     console.log('Token parts:', parts.length);
