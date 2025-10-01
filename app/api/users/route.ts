@@ -81,26 +81,37 @@ export async function POST(request: NextRequest) {
   try {
     // Check authentication with detailed logging
     console.log('=== API AUTH DEBUG ===');
+    console.log('All request headers:', Object.fromEntries(request.headers.entries()));
+
     const authHeader = request.headers.get('authorization');
     const xAuthToken = request.headers.get('x-auth-token');
 
-    console.log('Auth header:', authHeader ? authHeader.substring(0, 50) + '...' : 'null');
-    console.log('X-Auth-Token header:', xAuthToken ? xAuthToken.substring(0, 50) + '...' : 'null');
+    console.log('Auth header raw:', authHeader);
+    console.log('X-Auth-Token header raw:', xAuthToken);
 
     let token = null;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.replace('Bearer ', '');
-      console.log('Token extracted from Authorization header');
-    } else if (xAuthToken) {
+    if (authHeader) {
+      console.log('Auth header starts with Bearer:', authHeader.startsWith('Bearer '));
+      if (authHeader.startsWith('Bearer ')) {
+        token = authHeader.replace('Bearer ', '');
+        console.log('Token extracted from Authorization header');
+      } else {
+        console.log('Auth header exists but does not start with Bearer');
+      }
+    } else {
+      console.log('No Authorization header found');
+    }
+
+    if (xAuthToken) {
       token = xAuthToken;
       console.log('Token extracted from X-Auth-Token header');
     }
 
-    console.log('Final token:', token ? token.substring(0, 50) + '...' : 'null');
+    console.log('Final extracted token:', token ? token.substring(0, 50) + '...' : 'null');
     console.log('Token length:', token ? token.length : 0);
 
     if (!token) {
-      console.error('No token found in headers');
+      console.error('No token found in any header');
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
     }
 
