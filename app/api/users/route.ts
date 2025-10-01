@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
     }
 
-    // JWT verification
+    // JWT verification with proper decoding
     console.log('Token received for verification:', token.substring(0, 50) + '...');
     console.log('Token length:', token.length);
 
@@ -129,8 +129,8 @@ export async function POST(request: NextRequest) {
 
     let payload;
     try {
-      // Handle URL-safe base64 decoding
-      const base64Payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      // Standard JWT base64 decoding (not URL-safe)
+      const base64Payload = parts[1];
       const paddedPayload = base64Payload + '='.repeat((4 - base64Payload.length % 4) % 4);
       payload = JSON.parse(atob(paddedPayload));
       console.log('Payload decoded successfully:', payload);
