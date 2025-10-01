@@ -3,8 +3,8 @@ import { prisma } from '@/lib/db';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '@/lib/auth';
 
-// Force dynamic rendering
-export const dynamic = 'force-static';
+// Force dynamic rendering - CRITICAL: Must be 'force-dynamic' for JWT verification
+export const dynamic = 'force-dynamic';
 
 interface User {
   id: string;
@@ -69,32 +69,38 @@ export async function GET() {
     status: 200,
     headers: { 'Content-Type': 'application/json' }
   });
-
-  return new Response(JSON.stringify({
-    success: false,
-    error: 'Users endpoint - configure DATABASE_URL first'
-  }), {
-    status: 503,
-    headers: { 'Content-Type': 'application/json' }
-  });
 }
 
 export async function POST(request: NextRequest) {
+  console.log('🔍 === USER APPROVAL REQUEST START ===');
+  
   try {
     // Proper JWT verification using jsonwebtoken library
     try {
-      // Extract token from Authorization header
+      // Extract token from Authorization header or x-auth-token fallback
       const authHeader = request.headers.get('authorization');
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      const xAuthHeader = request.headers.get('x-auth-token');
+      console.log('1️⃣ Authorization header exists:', !!authHeader);
+      console.log('1️⃣ x-auth-token header exists:', !!xAuthHeader);
+
+      let token = authHeader && authHeader.startsWith('Bearer ')
+        ? authHeader.replace('Bearer ', '')
+        : (xAuthHeader || null);
+
+      if (!token) {
+        console.log('❌ Missing or invalid header format');
         return NextResponse.json(
           { error: 'Missing or invalid authorization header' },
           { status: 401 }
         );
       }
-
-      const token = authHeader.replace('Bearer ', '');
+      console.log('2️⃣ Token extracted, length:', token.length);
+      console.log('   First 20 chars:', token.substring(0, 20) + '...');
 
       // Verify token using jwt.verify (this handles ALL decoding and validation)
+      console.log('3️⃣ JWT_SECRET exists:', !!JWT_SECRET);
+      console.log('   Attempting verification...');
+      
       const decoded = jwt.verify(token, JWT_SECRET) as {
         userId: string;
         email: string;
@@ -103,20 +109,31 @@ export async function POST(request: NextRequest) {
         exp: number;
       };
 
+      console.log('✅ Token verified successfully!');
+      console.log('   User ID:', decoded.userId);
+      console.log('   Email:', decoded.email);
+      console.log('   Is Admin:', decoded.isAdmin);
+      console.log('   Expires:', new Date(decoded.exp * 1000).toISOString());
+
       // Check if user is admin
       if (!decoded.isAdmin) {
+        console.log('❌ User is not admin');
         return NextResponse.json(
           { error: 'Admin privileges required' },
           { status: 403 }
         );
       }
 
-      // Token is valid and user is admin - proceed with user approval
-      console.log('JWT verification successful for admin user:', decoded.email);
+      console.log('4️⃣ Admin check passed, proceeding with approval...');
 
     } catch (error) {
+      console.log('❌ === ERROR OCCURRED ===');
+      console.log('Error type:', error.constructor.name);
+      console.log('Error message:', error.message);
+      
       if (error instanceof jwt.JsonWebTokenError) {
         console.error('JWT verification failed:', error.message);
+        console.log('JWT Error Details:', error);
         return NextResponse.json(
           { error: 'Invalid token' },
           { status: 401 }
@@ -124,6 +141,7 @@ export async function POST(request: NextRequest) {
       }
       if (error instanceof jwt.TokenExpiredError) {
         console.error('JWT token expired');
+        console.log('Token expired at:', error.expiredAt);
         return NextResponse.json(
           { error: 'Token expired' },
           { status: 401 }

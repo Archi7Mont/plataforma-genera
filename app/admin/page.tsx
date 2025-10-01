@@ -538,7 +538,8 @@ export default function AdminPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${currentToken}`
+          'Authorization': `Bearer ${currentToken}`,
+          'x-auth-token': `${currentToken}`
         },
         body: JSON.stringify({
           action: 'approve',
