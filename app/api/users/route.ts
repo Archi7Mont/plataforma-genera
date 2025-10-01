@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '@/lib/auth';
 
 // Force dynamic rendering
 export const dynamic = 'force-static';
@@ -79,83 +81,57 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication with detailed logging
-    console.log('=== API AUTH DEBUG ===');
-    console.log('All request headers:', Object.fromEntries(request.headers.entries()));
-
-    const authHeader = request.headers.get('authorization');
-    const xAuthToken = request.headers.get('x-auth-token');
-
-    console.log('Auth header raw:', authHeader);
-    console.log('X-Auth-Token header raw:', xAuthToken);
-
-    let token = null;
-    if (authHeader) {
-      console.log('Auth header starts with Bearer:', authHeader.startsWith('Bearer '));
-      if (authHeader.startsWith('Bearer ')) {
-        token = authHeader.replace('Bearer ', '');
-        console.log('Token extracted from Authorization header');
-      } else {
-        console.log('Auth header exists but does not start with Bearer');
-      }
-    } else {
-      console.log('No Authorization header found');
-    }
-
-    if (xAuthToken) {
-      token = xAuthToken;
-      console.log('Token extracted from X-Auth-Token header');
-    }
-
-    console.log('Final extracted token:', token ? token.substring(0, 50) + '...' : 'null');
-    console.log('Token length:', token ? token.length : 0);
-
-    if (!token) {
-      console.error('No token found in any header');
-      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
-    }
-
-    // JWT verification with proper decoding
-    console.log('Token received for verification:', token.substring(0, 50) + '...');
-    console.log('Token length:', token.length);
-
-    const parts = token.split('.');
-    console.log('Token parts:', parts.length);
-
-    if (parts.length !== 3) {
-      console.error('Invalid token format - wrong number of parts');
-      return NextResponse.json({ success: false, error: 'Invalid token format' }, { status: 401 });
-    }
-
-    let payload;
+    // Proper JWT verification using jsonwebtoken library
     try {
-      // Standard JWT base64 decoding (not URL-safe)
-      const base64Payload = parts[1];
-      const paddedPayload = base64Payload + '='.repeat((4 - base64Payload.length % 4) % 4);
-      payload = JSON.parse(atob(paddedPayload));
-      console.log('Payload decoded successfully:', payload);
+      // Extract token from Authorization header
+      const authHeader = request.headers.get('authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return NextResponse.json(
+          { error: 'Missing or invalid authorization header' },
+          { status: 401 }
+        );
+      }
+
+      const token = authHeader.replace('Bearer ', '');
+
+      // Verify token using jwt.verify (this handles ALL decoding and validation)
+      const decoded = jwt.verify(token, JWT_SECRET) as {
+        userId: string;
+        email: string;
+        isAdmin: boolean;
+        iat: number;
+        exp: number;
+      };
+
+      // Check if user is admin
+      if (!decoded.isAdmin) {
+        return NextResponse.json(
+          { error: 'Admin privileges required' },
+          { status: 403 }
+        );
+      }
+
+      // Token is valid and user is admin - proceed with user approval
+      console.log('JWT verification successful for admin user:', decoded.email);
+
     } catch (error) {
-      console.error('Token decode error:', error);
-      return NextResponse.json({ success: false, error: 'Invalid token payload' }, { status: 401 });
+      if (error instanceof jwt.JsonWebTokenError) {
+        console.error('JWT verification failed:', error.message);
+        return NextResponse.json(
+          { error: 'Invalid token' },
+          { status: 401 }
+        );
+      }
+      if (error instanceof jwt.TokenExpiredError) {
+        console.error('JWT token expired');
+        return NextResponse.json(
+          { error: 'Token expired' },
+          { status: 401 }
+        );
+      }
+      console.error('Unexpected JWT error:', error);
+      throw error; // Re-throw other errors
     }
-
-    const tokenTimestamp = Math.floor(Date.now() / 1000);
-    console.log('Current timestamp:', tokenTimestamp);
-    console.log('Token expiration:', payload.exp);
-    console.log('Token expired:', payload.exp && payload.exp < tokenTimestamp);
-
-    if (payload.exp && payload.exp < tokenTimestamp) {
-      console.error('Token has expired');
-      return NextResponse.json({ success: false, error: 'Token expired' }, { status: 401 });
-    }
-
-    console.log('User is admin:', payload.isAdmin);
-    if (!payload.isAdmin) {
-      console.error('User is not admin');
-      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
-    }
-
-    console.log('Authentication successful');
 
     const body = await request.json();
     const {
