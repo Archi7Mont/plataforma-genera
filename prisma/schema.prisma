@@ -16,8 +16,8 @@ model User {
   fullName              String
   organization          String
   position              String?
-  status                UserStatus @default(PENDING)
-  role                  UserRole @default(USER)
+  status                String @default("PENDING")
+  role                  String @default("USER")
   passwordHash          String?
   createdAt             DateTime @default(now())
   lastLoginAt           DateTime?
@@ -71,15 +71,4 @@ model PasswordResetRequest {
   @@map("password_reset_requests")
 }
 
-enum UserStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  BLOCKED
-  DELETED
-}
-
-enum UserRole {
-  ADMIN
-  USER
-}
+// Enums are defined in PostgreSQL directly for better performance

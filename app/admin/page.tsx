@@ -182,7 +182,8 @@ export default function AdminPage() {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'admin@genera.com', password: 'Admin1234!' })
+        // Align with fallback admin password ("admin123")
+        body: JSON.stringify({ email: 'admin@genera.com', password: 'admin123' })
       })
       const result = await response.json()
       if (result.success && result.token) {
@@ -536,6 +537,7 @@ export default function AdminPage() {
 
       const response = await fetch('/api/users', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${currentToken}`,

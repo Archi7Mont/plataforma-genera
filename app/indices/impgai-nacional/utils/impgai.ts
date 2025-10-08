@@ -46,3 +46,7 @@ export function calcularPuntajeTotal(dims: Dimension[], respuestas: Record<strin
 
 
 
+
+
+
+

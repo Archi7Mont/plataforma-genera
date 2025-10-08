@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { JWT_SECRET } from '@/lib/auth';
 
 // This route should never execute during build
-export const dynamic = 'force-static'
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 
 // Fallback admin credentials for when database is not available
 const FALLBACK_ADMIN = {

@@ -5,6 +5,7 @@ import { JWT_SECRET } from '@/lib/auth';
 
 // Force dynamic rendering - CRITICAL: Must be 'force-dynamic' for JWT verification
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 interface User {
   id: string;
@@ -77,15 +78,16 @@ export async function POST(request: NextRequest) {
   try {
     // Proper JWT verification using jsonwebtoken library
     try {
-      // Extract token from Authorization header or x-auth-token fallback
+      // Extract token from Authorization header, x-auth-token header, or auth-token cookie (fallbacks)
       const authHeader = request.headers.get('authorization');
       const xAuthHeader = request.headers.get('x-auth-token');
+      const cookieToken = request.cookies.get('auth-token')?.value || null;
       console.log('1️⃣ Authorization header exists:', !!authHeader);
       console.log('1️⃣ x-auth-token header exists:', !!xAuthHeader);
 
       let token = authHeader && authHeader.startsWith('Bearer ')
         ? authHeader.replace('Bearer ', '')
-        : (xAuthHeader || null);
+        : (xAuthHeader || cookieToken || null);
 
       if (!token) {
         console.log('❌ Missing or invalid header format');
@@ -126,29 +128,30 @@ export async function POST(request: NextRequest) {
 
       console.log('4️⃣ Admin check passed, proceeding with approval...');
 
-    } catch (error) {
+    } catch (err: unknown) {
       console.log('❌ === ERROR OCCURRED ===');
-      console.log('Error type:', error.constructor.name);
-      console.log('Error message:', error.message);
-      
-      if (error instanceof jwt.JsonWebTokenError) {
-        console.error('JWT verification failed:', error.message);
-        console.log('JWT Error Details:', error);
+      const errorName = err instanceof Error ? err.name : 'UnknownError';
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.log('Error type:', errorName);
+      console.log('Error message:', errorMessage);
+
+      if (err instanceof jwt.TokenExpiredError) {
+        console.error('JWT token expired');
+        console.log('Token expired at:', err.expiredAt);
+        return NextResponse.json(
+          { error: 'Token expired' },
+          { status: 401 }
+        );
+      } else if (err instanceof jwt.JsonWebTokenError) {
+        console.error('JWT verification failed:', errorMessage);
+        console.log('JWT Error Details:', err);
         return NextResponse.json(
           { error: 'Invalid token' },
           { status: 401 }
         );
       }
-      if (error instanceof jwt.TokenExpiredError) {
-        console.error('JWT token expired');
-        console.log('Token expired at:', error.expiredAt);
-        return NextResponse.json(
-          { error: 'Token expired' },
-          { status: 401 }
-        );
-      }
-      console.error('Unexpected JWT error:', error);
-      throw error; // Re-throw other errors
+      console.error('Unexpected JWT error:', err);
+      throw err; // Re-throw other errors
     }
 
     const body = await request.json();
@@ -315,7 +318,7 @@ export async function POST(request: NextRequest) {
       totalUsers: allUsers.length
     });
 
-    return NextResponse.json({ success: true, users: allUsers });
+    return NextResponse.json({ success: true, users: allUsers, debug: { beforeUser: user, afterUser: updatedUser } });
   } catch (error) {
     console.error('Error updating user:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });

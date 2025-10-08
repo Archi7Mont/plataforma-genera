@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,26 +15,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    // Simple JWT verification
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    let payload;
+    // Verify JWT using jsonwebtoken
     try {
-      payload = JSON.parse(atob(parts[1]));
-    } catch {
+      const decoded = jwt.verify(token, JWT_SECRET) as { isAdmin: boolean };
+      if (!decoded.isAdmin) {
+        return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+      }
+    } catch (err) {
+      if (err instanceof jwt.TokenExpiredError) {
+        return NextResponse.json({ error: 'Token expired' }, { status: 401 });
+      }
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    const now = Math.floor(Date.now() / 1000);
-    if (payload.exp < now) {
-      return NextResponse.json({ error: 'Token expired' }, { status: 401 });
-    }
-
-    if (!payload.isAdmin) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
     // Skip database operations during build phase
@@ -91,26 +85,17 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    // Simple JWT verification
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    let payload;
+    // Verify JWT using jsonwebtoken
     try {
-      payload = JSON.parse(atob(parts[1]));
-    } catch {
+      const decoded = jwt.verify(token, JWT_SECRET) as { isAdmin: boolean };
+      if (!decoded.isAdmin) {
+        return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+      }
+    } catch (err) {
+      if (err instanceof jwt.TokenExpiredError) {
+        return NextResponse.json({ error: 'Token expired' }, { status: 401 });
+      }
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    const now = Math.floor(Date.now() / 1000);
-    if (payload.exp < now) {
-      return NextResponse.json({ error: 'Token expired' }, { status: 401 });
-    }
-
-    if (!payload.isAdmin) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
     const { email } = await request.json();
@@ -133,12 +118,24 @@ export async function DELETE(request: NextRequest) {
       where: { email: emailNormalized }
     });
 
-    // Get updated list
+    // Get updated list and normalize shape
     const updatedPasswords = await prisma.password.findMany({
       orderBy: { generatedAt: 'desc' }
     });
 
-    return NextResponse.json({ success: true, passwords: updatedPasswords });
+    const passwordStates = updatedPasswords.map(p => ({
+      email: p.email,
+      status: p.approvedAt ? 'active' : 'pending_approval',
+      password: p.plainPassword,
+      plainPassword: p.plainPassword,
+      generatedAt: p.generatedAt.toISOString(),
+      approvedAt: p.approvedAt?.toISOString() || null,
+      approvedBy: p.approvedBy,
+      revokedAt: p.revokedAt?.toISOString() || null,
+      revokedBy: p.revokedBy
+    }));
+
+    return NextResponse.json({ success: true, passwords: passwordStates });
   } catch (error) {
     console.error('Error deleting password:', error);
     return NextResponse.json({ success: false, error: 'Failed to delete entry' }, { status: 500 });

@@ -1,7 +1,12 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+export const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  process.env.SUPABASE_JWT_SECRET ||
+  process.env.NEXTAUTH_SECRET ||
+  'your-super-secret-jwt-key-change-in-production';
+export const JWT_ALGO: jwt.Algorithm = 'HS256';
 const JWT_EXPIRES_IN = '24h'; // 24 hours
 const BCRYPT_ROUNDS = 12;
 
@@ -47,6 +52,7 @@ export function generateToken(user: User): string {
 
   return jwt.sign(payload, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
+    algorithm: JWT_ALGO,
   });
 }
 

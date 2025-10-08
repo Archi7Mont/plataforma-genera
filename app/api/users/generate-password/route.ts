@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '@/lib/auth';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 // Generate secure password
 function generateSecurePassword(): string {
@@ -35,26 +38,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    // Simple JWT verification
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    let payload;
+    // Verify JWT using jsonwebtoken
     try {
-      payload = JSON.parse(atob(parts[1]));
-    } catch {
+      const decoded = jwt.verify(token, JWT_SECRET) as { isAdmin: boolean };
+      if (!decoded.isAdmin) {
+        return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+      }
+    } catch (err) {
+      if (err instanceof jwt.TokenExpiredError) {
+        return NextResponse.json({ error: 'Token expired' }, { status: 401 });
+      }
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    const tokenTimestamp = Math.floor(Date.now() / 1000);
-    if (payload.exp < tokenTimestamp) {
-      return NextResponse.json({ error: 'Token expired' }, { status: 401 });
-    }
-
-    if (!payload.isAdmin) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
     const { email } = await request.json();
