@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { dimensiones } from "../data/impgai-nacional-data";
-import { calcularPuntajeDimension } from "../utils/impgai";
+import { calcularPuntosDimension, calcularMaxPuntosDimension } from "../utils/impgai";
 // import { clasificarDimensiones, clasificarGlobalPorPuntaje } from "../utils/impgai-niveles";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -167,7 +167,7 @@ export default function ResultadosPage() {
 
   // Calcular resultados de forma simple
   const puntajeTotal = filteredDimensiones.reduce((total: number, dim: any) => {
-    const puntajeDim = calcularPuntajeDimension(dim, respuestas);
+    const puntajeDim = calcularPuntosDimension(dim, respuestas);
     return total + puntajeDim;
   }, 0) / filteredDimensiones.length;
 
@@ -241,22 +241,39 @@ export default function ResultadosPage() {
   console.log('Filtered dimensiones en resultados:', filteredDimensiones);
   console.log('Primera dimensión:', filteredDimensiones[0]);
   
-  // Función para calcular el porcentaje de "No aplica" en una dimensión
+  // Función para calcular el porcentaje de "No aplica" ponderado por puntaje máximo
+  // En lugar de contar indicadores, sumamos el puntaje máximo de cada indicador
+  // y calculamos qué porcentaje de ese total corresponde a indicadores marcados como "No aplica".
   const calcularPorcentajeNoAplica = (dimension: any) => {
-    let totalIndicadores = 0;
-    let noAplicaIndicadores = 0;
-    
+    let totalPuntosDimension = 0;
+    let puntosNoAplica = 0;
+
+    if (!dimension || !dimension.subdimensiones) return 0;
+
     dimension.subdimensiones.forEach((subdimension: any) => {
-      subdimension.indicadores.forEach((indicador: any) => {
-        totalIndicadores++;
+      (subdimension?.indicadores || []).forEach((indicador: any) => {
+        if (!indicador || !Array.isArray(indicador.opciones)) return;
+
+        // Puntaje máximo del indicador (excluyendo explícitamente la opción "No aplica")
+        const maxPuntajeIndicador = Math.max(
+          ...indicador.opciones
+            .filter((op: any) => op.valor !== 'No aplica')
+            .map((op: any) => op.puntaje || 0)
+        );
+
+        // Si no hay opciones con puntaje, no aporta al total
+        if (!isFinite(maxPuntajeIndicador) || maxPuntajeIndicador <= 0) return;
+
+        totalPuntosDimension += maxPuntajeIndicador;
+
         const respuesta = respuestas[indicador.id];
         if (respuesta === 'No aplica') {
-          noAplicaIndicadores++;
+          puntosNoAplica += maxPuntajeIndicador;
         }
       });
     });
-    
-    return totalIndicadores > 0 ? (noAplicaIndicadores / totalIndicadores) * 100 : 0;
+
+    return totalPuntosDimension > 0 ? (puntosNoAplica / totalPuntosDimension) * 100 : 0;
   };
 
   // Separar dimensiones en aplicables y no aplicables
@@ -300,7 +317,7 @@ export default function ResultadosPage() {
       console.warn('Dimensión inválida:', dim);
       return total;
     }
-    return total + calcularPuntajeDimension(dim, respuestas);
+    return total + calcularPuntosDimension(dim, respuestas);
   }, 0);
   
   const maxPuntos = dimensionesAplicables.reduce((total, dim) => {
@@ -308,7 +325,7 @@ export default function ResultadosPage() {
       console.warn('Dimensión inválida en maxPuntos:', dim);
       return total;
     }
-    return total + calcularPuntajeMaximoDimension(dim);
+    return total + calcularMaxPuntosDimension(dim, respuestas);
   }, 0);
   
   const porcentajeGlobal = maxPuntos > 0 ? (totalPuntos / maxPuntos) * 100 : 0;
@@ -391,7 +408,7 @@ export default function ResultadosPage() {
     doc.setTextColor('#374151'); doc.setFontSize(13);
     doc.text('Resultados por Dimensión', margin, y); y += 16;
     filteredDimensiones.forEach((dim: any) => {
-      const puntajeDim = calcularPuntajeDimension(dim, respuestas);
+      const puntajeDim = calcularPuntosDimension(dim, respuestas);
       const puntajeMaxDim = calcularPuntajeMaximoDimension(dim);
       const porcentaje = puntajeMaxDim > 0 ? (puntajeDim / puntajeMaxDim) * 100 : 0;
       const { hex } = getDimensionColors(dim.id);
@@ -478,7 +495,7 @@ export default function ResultadosPage() {
     worksheet.addRow(['Dimensión', 'Subdimensión', 'Indicador', 'Pregunta', 'Respuesta', 'Puntos', 'Máximo', 'Porcentaje / Nivel']);
 
     filteredDimensiones.forEach((dim: any) => {
-      const puntajeDim = calcularPuntajeDimension(dim, respuestas);
+      const puntajeDim = calcularPuntosDimension(dim, respuestas);
       const puntajeMaxDim = calcularPuntajeMaximoDimension(dim);
       const pctDim = puntajeMaxDim > 0 ? (puntajeDim / puntajeMaxDim) * 100 : 0;
       const nivelDim = getNivelDimension(pctDim);
@@ -627,8 +644,8 @@ export default function ResultadosPage() {
             <h2 className="text-2xl font-semibold text-gray-800 mb-6">Dimensiones Evaluadas</h2>
             <div className="grid grid-cols-1 gap-6">
               {dimensionesAplicables.map((dimension) => {
-            const puntajeDim = calcularPuntajeDimension(dimension, respuestas);
-            const puntajeMaxDim = calcularPuntajeMaximoDimension(dimension);
+            const puntajeDim = calcularPuntosDimension(dimension, respuestas);
+            const puntajeMaxDim = calcularMaxPuntosDimension(dimension, respuestas);
             const porcentaje = puntajeMaxDim > 0 ? (puntajeDim / puntajeMaxDim) * 100 : 0;
             const { hex, light } = getDimensionColors(dimension.id);
             const { nivel: nivelDimension } = getNivelDimension(porcentaje);
@@ -660,9 +677,6 @@ export default function ResultadosPage() {
                     </div>
                     <div className="text-right">
                       <div className="flex flex-col items-end">
-                        <p className="text-3xl font-bold" style={{ color: hex }}>
-                          {porcentaje.toFixed(1)}%
-                        </p>
                         <div className="flex items-center gap-1 text-gray-500 text-sm mt-1">
                           <span className="font-medium">{puntajeDim}</span>
                           <span>de</span>
@@ -674,10 +688,11 @@ export default function ResultadosPage() {
                   </div>
                   
                   <div className="w-full bg-white rounded-full h-2 mb-4">
-                    <div 
-                      className="h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${porcentaje}%`, backgroundColor: hex }}
-                    ></div>
+                      <div 
+                        className="h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${porcentaje}%`, backgroundColor: hex }}
+                        aria-hidden
+                      ></div>
                   </div>
 
                   <div className="flex justify-between items-center">
@@ -716,7 +731,7 @@ export default function ResultadosPage() {
                             {subdimension.id}. {subdimension.nombre}
                           </h4>
                           <p className="text-sm text-gray-600 mb-2">
-                            Puntaje: {puntajeSubdim} / {puntajeMaxSubdim} ({porcentajeSubdim}%)
+                            Puntaje: {puntajeSubdim} / {puntajeMaxSubdim}
                           </p>
                           <div className="space-y-3 mt-4 text-sm">
                             {subdimension.indicadores.map((indicador: any) => {

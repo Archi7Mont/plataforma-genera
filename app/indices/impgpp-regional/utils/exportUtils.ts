@@ -65,7 +65,7 @@ export const exportToPDF = (data: ExportData) => {
   data.resultados.dimensiones.forEach((dim: any) => {
     addPageIfNeeded(40); doc.setFillColor('#14B8A6'); doc.rect(margin, y + 10, contentWidth, 6, 'F');
     doc.setTextColor('#0F172A'); doc.setFontSize(12); doc.text(`${dim.id}. ${dim.nombre}`, margin, y + 8);
-    doc.setTextColor('#334155'); doc.text(`${dim.puntaje.toFixed(0)} / ${dim.maxPuntaje.toFixed(0)} (${dim.porcentaje.toFixed(1)}%)`, margin + contentWidth, y + 8, { align: 'right' });
+    doc.setTextColor('#334155'); doc.text(`${dim.puntaje.toFixed(0)} / ${dim.maxPuntaje.toFixed(0)}`, margin + contentWidth, y + 8, { align: 'right' });
     y += 30;
     (dim.subdimensiones || []).forEach((sd: any) => {
       addPageIfNeeded(28); doc.setTextColor('#0F172A'); doc.setFontSize(12); doc.text(`${sd.id}. ${sd.nombre}`, margin, y); y += 6;
@@ -117,10 +117,10 @@ export const exportToExcel = async (data: ExportData) => {
   worksheet.addRow(['Nivel Global', data.resultados.categoriaGlobal]);
   worksheet.addRow(['']);
   worksheet.addRow(['RESULTADOS POR DIMENSIÓN']);
-  worksheet.addRow(['Dimensión', 'Subdimensión', 'Indicador', 'Pregunta', 'Respuesta', 'Puntos', 'Máximo', 'Porcentaje / Nivel']);
+  worksheet.addRow(['Dimensión', 'Subdimensión', 'Indicador', 'Pregunta', 'Respuesta', 'Puntos', 'Máximo', 'Nivel']);
 
   data.resultados.dimensiones.forEach((dim: any) => {
-    worksheet.addRow([`${dim.id}. ${dim.nombre}`, '', '', '', '', '', '', `${dim.porcentaje.toFixed(1)}% / ${dim.categoria}`]);
+    worksheet.addRow([`${dim.id}. ${dim.nombre}`, '', '', '', '', '', '', `${dim.categoria}`]);
     (dim.subdimensiones || []).forEach((sd: any) => {
       let subTotal = 0, subMax = 0;
       (sd.indicadores || []).forEach((ind: any) => {
@@ -128,8 +128,7 @@ export const exportToExcel = async (data: ExportData) => {
         const max = Math.max(...ind.opciones.filter((o: any) => o.valor !== 'No aplica').map((o: any) => o.puntaje || 0));
         if (resp !== 'No aplica' && op) subTotal += op.puntaje; subMax += max;
       });
-      const pct = subMax > 0 ? (subTotal / subMax) * 100 : 0;
-      worksheet.addRow(['', `${sd.id}. ${sd.nombre}`, '', '', '', subTotal, subMax, `${pct.toFixed(1)}%`]);
+      worksheet.addRow(['', `${sd.id}. ${sd.nombre}`, '', '', '', subTotal, subMax, ``]);
       (sd.indicadores || []).forEach((ind: any) => {
         const resp = data.respuestas[ind.id]; const op = ind.opciones.find((o: any) => o.valor === resp);
         const max = Math.max(...ind.opciones.filter((o: any) => o.valor !== 'No aplica').map((o: any) => o.puntaje || 0));

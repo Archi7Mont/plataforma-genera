@@ -308,13 +308,10 @@ export default function ResultadosPage() {
                         {dimension.id}. {dimension.nombre}
                       </h3>
                       <p className={`text-sm ${colors.text} mt-1`}>
-                        Puntaje: {dimension.puntaje}/{dimension.maxPuntaje} ({dimension.porcentaje.toFixed(1)}%)
+                        Puntaje: {dimension.puntaje}/{dimension.maxPuntaje}
                       </p>
                     </div>
                     <div className="text-right">
-                      <div className={`text-2xl font-bold ${colors.textDark}`}>
-                        {dimension.porcentaje.toFixed(1)}%
-                      </div>
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                         levelColors?.bg || 'bg-gray-100'
                       }`}>

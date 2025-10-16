@@ -703,9 +703,6 @@ export default function ResultadosPage() {
                     </div>
                     <div className="text-right">
                       <div className="flex flex-col items-end">
-                        <p className="text-3xl font-bold" style={{ color: hex }}>
-                          {porcentaje.toFixed(1)}%
-                        </p>
                         <div className="flex items-center gap-1 text-gray-500 text-sm mt-1">
                           <span className="font-medium">{puntajeDim}</span>
                           <span>de</span>
@@ -759,7 +756,7 @@ export default function ResultadosPage() {
                             {subdimension.id}. {subdimension.nombre}
                           </h4>
                           <p className="text-sm text-gray-600 mb-2">
-                            Puntaje: {puntajeSubdim} / {puntajeMaxSubdim} ({porcentajeSubdim}%)
+                            Puntaje: {puntajeSubdim} / {puntajeMaxSubdim}
                           </p>
                           <div className="space-y-3 mt-4 text-sm">
                             {subdimension.indicadores.map((indicador: any) => {
