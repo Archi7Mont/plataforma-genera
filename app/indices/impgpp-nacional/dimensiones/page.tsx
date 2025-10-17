@@ -231,7 +231,7 @@ export default function DimensionesPage() {
         <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-teal-700">Dimensiones de Evaluación IMP-GPP</h1>
+              <h1 className="text-2xl font-bold text-teal-700">Dimensiones de Evaluación IMPGPP</h1>
               <p className="text-gray-600 mt-1">
                 Política Pública: <strong>{configuracion.politicaPublicaAuditada}</strong>
               </p>

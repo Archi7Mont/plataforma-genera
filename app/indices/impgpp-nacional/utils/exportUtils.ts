@@ -32,7 +32,7 @@ export const exportToPDF = (data: ExportData) => {
 
   // Título
   doc.setFontSize(20); doc.setTextColor('#0F766E');
-  doc.text('IMP-GPP', pageWidth/2, y, { align: 'center' }); y += 20;
+  doc.text('IMPGPP', pageWidth/2, y, { align: 'center' }); y += 20;
   doc.setFontSize(12); doc.setTextColor('#6B7280');
   doc.text('Índice Multidimensional de Políticas Públicas con Perspectiva de Género', pageWidth/2, y, { align: 'center' }); y += 24;
 
@@ -107,7 +107,7 @@ export const exportToPDF = (data: ExportData) => {
   const footerY = pageHeight - 24; const pages = doc.getNumberOfPages();
   for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFontSize(9); doc.setTextColor('#6B7280'); doc.text(foot1, pageWidth/2, footerY - 12, { align: 'center' }); doc.text(foot2, pageWidth/2, footerY, { align: 'center' }); }
 
-  doc.save(`IMP-GPP_Resultados_${data.configuracion.institucionAuditada.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`);
+  doc.save(`IMPGPP_Resultados_${data.configuracion.institucionAuditada.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`);
 };
 
 export const exportToExcel = async (data: ExportData) => {
@@ -116,7 +116,7 @@ export const exportToExcel = async (data: ExportData) => {
   const worksheet = workbook.addWorksheet('Resultados');
 
   worksheet.addRow(['Géner.A.']);
-  worksheet.addRow(['IMP-GPP - Índice Multidimensional de Políticas Públicas con Perspectiva de Género']);
+  worksheet.addRow(['IMPGPP - Índice Multidimensional de Políticas Públicas con Perspectiva de Género']);
   worksheet.addRow(['']);
   worksheet.addRow(['INFORMACIÓN DE CONFIGURACIÓN']);
   worksheet.addRow(['Organismo Auditado', data.configuracion.institucionAuditada]);
@@ -161,5 +161,5 @@ export const exportToExcel = async (data: ExportData) => {
   // Save the file
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  saveAs(blob, `IMP-GPP_Resultados_${data.configuracion.institucionAuditada.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  saveAs(blob, `IMPGPP_Resultados_${data.configuracion.institucionAuditada.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().slice(0,10)}.xlsx`);
 };
