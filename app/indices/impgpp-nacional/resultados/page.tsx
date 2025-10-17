@@ -222,19 +222,16 @@ export default function ResultadosPage() {
           </div>
           <div className="mt-4 text-center">
             <span
-              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+              className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium ${
                 LEVEL_COLORS[resultados.categoriaGlobal as keyof typeof LEVEL_COLORS]?.bg || 'bg-gray-100'
               } border`}
-              style={{ borderColor: LEVEL_COLORS[resultados.categoriaGlobal as keyof typeof LEVEL_COLORS]?.dot || '#9CA3AF' }}
+              style={{ 
+                backgroundColor: LEVEL_COLORS[resultados.categoriaGlobal as keyof typeof LEVEL_COLORS]?.bg || '#F3F4F6',
+                borderColor: LEVEL_COLORS[resultados.categoriaGlobal as keyof typeof LEVEL_COLORS]?.dot || '#9CA3AF',
+                color: LEVEL_COLORS[resultados.categoriaGlobal as keyof typeof LEVEL_COLORS]?.text || '#4B5563'
+              }}
             >
-              <span className={`w-2 h-2 rounded-full mr-2 ${
-                LEVEL_COLORS[resultados.categoriaGlobal as keyof typeof LEVEL_COLORS]?.dot || 'bg-gray-400'
-              }`}></span>
-              <span className={`${
-                LEVEL_COLORS[resultados.categoriaGlobal as keyof typeof LEVEL_COLORS]?.text || 'text-gray-600'
-              }`}>
-                {resultados.categoriaGlobal}
-              </span>
+              {resultados.categoriaGlobal}
             </span>
           </div>
         </div>
@@ -260,19 +257,14 @@ export default function ResultadosPage() {
                     </div>
                     <div className="text-right">
                       <span
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          levelColors?.bg || 'bg-gray-100'
-                        } border`}
-                        style={{ borderColor: levelColors?.dot || '#9CA3AF' }}
+                        className={`inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-medium border`}
+                        style={{ 
+                          backgroundColor: levelColors?.bg || '#F3F4F6',
+                          borderColor: levelColors?.dot || '#9CA3AF',
+                          color: levelColors?.text || '#4B5563'
+                        }}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full mr-1 ${
-                          levelColors?.dot || 'bg-gray-400'
-                        }`}></span>
-                        <span className={`${
-                          levelColors?.text || 'text-gray-600'
-                        }`}>
-                          {dimension.categoria}
-                        </span>
+                        {dimension.categoria}
                       </span>
                     </div>
                   </div>
