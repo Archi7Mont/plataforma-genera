@@ -161,7 +161,7 @@ export default function ResultadosPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-teal-700">Resultados IMP-GPP</h1>
+              <h1 className="text-2xl font-bold text-teal-700">Resultados IMPGPP</h1>
               <div className="text-gray-600 mt-2 space-y-1">
                 <p>
                   Organismo Auditado: <strong>{configuracion.institucionAuditada}</strong>
@@ -221,9 +221,12 @@ export default function ResultadosPage() {
             </div>
           </div>
           <div className="mt-4 text-center">
-            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-              LEVEL_COLORS[resultados.categoriaGlobal as keyof typeof LEVEL_COLORS]?.bg || 'bg-gray-100'
-            }`}>
+            <span
+              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                LEVEL_COLORS[resultados.categoriaGlobal as keyof typeof LEVEL_COLORS]?.bg || 'bg-gray-100'
+              } border`}
+              style={{ borderColor: LEVEL_COLORS[resultados.categoriaGlobal as keyof typeof LEVEL_COLORS]?.dot || '#9CA3AF' }}
+            >
               <span className={`w-2 h-2 rounded-full mr-2 ${
                 LEVEL_COLORS[resultados.categoriaGlobal as keyof typeof LEVEL_COLORS]?.dot || 'bg-gray-400'
               }`}></span>
@@ -236,62 +239,6 @@ export default function ResultadosPage() {
           </div>
         </div>
 
-        {/* No Aplica Summary */}
-        {(() => {
-          const noAplicaIndicators: Array<{
-            dimension: string;
-            subdimension: string;
-            indicador: string;
-            id: string;
-          }> = [];
-          resultados.dimensiones.forEach((dimension: any) => {
-            dimension.subdimensiones.forEach((subdimension: any) => {
-              subdimension.indicadores.forEach((indicador: any) => {
-                if (respuestas[indicador.id] === 'No aplica') {
-                  noAplicaIndicators.push({
-                    dimension: dimension.nombre,
-                    subdimension: subdimension.nombre,
-                    indicador: indicador.texto,
-                    id: indicador.id
-                  });
-                }
-              });
-            });
-          });
-
-          if (noAplicaIndicators.length > 0) {
-            return (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-8">
-                <h2 className="text-lg font-semibold text-yellow-800 mb-4">
-                  Indicadores Marcados como "No Aplica"
-                </h2>
-                <div className="space-y-3">
-                  {noAplicaIndicators.map((item, index) => (
-                    <div key={index} className="bg-white border border-yellow-200 rounded-lg p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="text-sm font-medium text-gray-900">
-                            {item.id}. {item.indicador}
-                          </div>
-                          <div className="text-sm text-gray-600 mt-1">
-                            {item.dimension} → {item.subdimension}
-                          </div>
-                        </div>
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                          No Aplica
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4 text-sm text-yellow-700">
-                  <strong>Nota:</strong> Los indicadores marcados como "No aplica" no contribuyen al puntaje total de la evaluación.
-                </div>
-              </div>
-            );
-          }
-          return null;
-        })()}
 
         {/* Dimension Results */}
         <div className="space-y-6">
@@ -312,9 +259,12 @@ export default function ResultadosPage() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        levelColors?.bg || 'bg-gray-100'
-                      }`}>
+                      <span
+                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          levelColors?.bg || 'bg-gray-100'
+                        } border`}
+                        style={{ borderColor: levelColors?.dot || '#9CA3AF' }}
+                      >
                         <span className={`w-1.5 h-1.5 rounded-full mr-1 ${
                           levelColors?.dot || 'bg-gray-400'
                         }`}></span>
@@ -412,6 +362,63 @@ export default function ResultadosPage() {
             );
           })}
         </div>
+
+        {/* No Aplica Summary (moved after dimensions) */}
+        {(() => {
+          const noAplicaIndicators: Array<{
+            dimension: string;
+            subdimension: string;
+            indicador: string;
+            id: string;
+          }> = [];
+          resultados.dimensiones.forEach((dimension: any) => {
+            dimension.subdimensiones.forEach((subdimension: any) => {
+              subdimension.indicadores.forEach((indicador: any) => {
+                if (respuestas[indicador.id] === 'No aplica') {
+                  noAplicaIndicators.push({
+                    dimension: dimension.nombre,
+                    subdimension: subdimension.nombre,
+                    indicador: indicador.texto,
+                    id: indicador.id
+                  });
+                }
+              });
+            });
+          });
+
+          if (noAplicaIndicators.length > 0) {
+            return (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-8 mt-8">
+                <h2 className="text-lg font-semibold text-yellow-800 mb-4">
+                  Indicadores Marcados como "No Aplica"
+                </h2>
+                <div className="space-y-3">
+                  {noAplicaIndicators.map((item, index) => (
+                    <div key={index} className="bg-white border border-yellow-200 rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="text-sm font-medium text-gray-900">
+                            {item.id}. {item.indicador}
+                          </div>
+                          <div className="text-sm text-gray-600 mt-1">
+                            {item.dimension} → {item.subdimension}
+                          </div>
+                        </div>
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          No Aplica
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 text-sm text-yellow-700">
+                  <strong>Nota:</strong> Los indicadores marcados como "No aplica" no contribuyen al puntaje total de la evaluación.
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
 
         {/* Export Buttons */}
         <div className="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
