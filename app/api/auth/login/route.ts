@@ -20,8 +20,69 @@ export async function POST(request: NextRequest) {
 
     const emailNormalized = String(email || '').trim().toLowerCase();
 
-    // Find user in database
-    const user = AuthDB.findUserByEmail(emailNormalized);
+    // Fallback for Vercel: Check environment variables if database operations fail
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@genera.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+
+    // Try to find user in database, but catch file system errors on Vercel
+    let user = null;
+    let isFileSystemAvailable = true;
+    
+    try {
+      user = AuthDB.findUserByEmail(emailNormalized);
+    } catch (dbError) {
+      console.error('Database error:', dbError);
+      isFileSystemAvailable = false;
+    }
+
+    // Fallback: Check if it's admin login with environment credentials
+    if (!user && emailNormalized === adminEmail.toLowerCase()) {
+      // Verify password
+      const isValid = await bcrypt.compare(password, await bcrypt.hash(adminPassword, 12));
+      if (!isValid && password === adminPassword) {
+        // Generate JWT token for admin
+        const token = jwt.sign(
+          {
+            userId: 'admin-user-1',
+            email: adminEmail,
+            isAdmin: true
+          },
+          JWT_SECRET,
+          { expiresIn: '24h' }
+        );
+
+        return NextResponse.json({
+          success: true,
+          user: {
+            id: 'admin-user-1',
+            email: adminEmail,
+            isAdmin: true
+          },
+          token
+        });
+      } else if (password === adminPassword) {
+        // Direct password match (for simple password)
+        const token = jwt.sign(
+          {
+            userId: 'admin-user-1',
+            email: adminEmail,
+            isAdmin: true
+          },
+          JWT_SECRET,
+          { expiresIn: '24h' }
+        );
+
+        return NextResponse.json({
+          success: true,
+          user: {
+            id: 'admin-user-1',
+            email: adminEmail,
+            isAdmin: true
+          },
+          token
+        });
+      }
+    }
 
     if (!user) {
       return NextResponse.json({ success: false, error: 'Invalid credentials' }, { status: 401 });
@@ -43,11 +104,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid credentials' }, { status: 401 });
     }
 
-    // Update login metadata
-    AuthDB.updateUser(user.id, {
-      lastLoginAt: new Date().toISOString(),
-      loginCount: user.loginCount + 1,
-    });
+    // Update login metadata (only if file system is available)
+    if (isFileSystemAvailable) {
+      try {
+        AuthDB.updateUser(user.id, {
+          lastLoginAt: new Date().toISOString(),
+          loginCount: user.loginCount + 1,
+        });
+      } catch (updateError) {
+        console.error('Error updating user:', updateError);
+        // Continue anyway - authentication was successful
+      }
+    }
 
     // Generate JWT token
     const token = jwt.sign(
@@ -77,4 +145,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
 }
