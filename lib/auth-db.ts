@@ -4,6 +4,9 @@ import bcrypt from 'bcryptjs';
 
 const DB_PATH = path.join(process.cwd(), 'data', 'auth.json');
 
+// In-memory fallback database (for Vercel)
+let inMemoryDB: AuthDatabase | null = null;
+
 interface UserRecord {
   id: string;
   email: string;
@@ -46,28 +49,85 @@ interface AuthDatabase {
   generatedPasswordHistory: GeneratedPasswordHistory[];
 }
 
+// Check if running on Vercel
+const isVercel = !!process.env.VERCEL;
+
 // Ensure data directory exists
 function ensureDataDir() {
+  if (isVercel) return; // Skip on Vercel
   const dataDir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+  try {
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+  } catch (e) {
+    console.warn('Could not create data directory:', e);
   }
 }
 
-// Load database from file
+// Load database from file or environment
 function loadDatabase(): AuthDatabase {
-  ensureDataDir();
-  if (fs.existsSync(DB_PATH)) {
-    const data = fs.readFileSync(DB_PATH, 'utf-8');
-    return JSON.parse(data);
+  // If on Vercel or file system not available, use in-memory storage
+  if (isVercel || !canAccessFileSystem()) {
+    if (inMemoryDB) return inMemoryDB;
+    
+    // Try to load from environment variable
+    try {
+      const dbString = process.env.AUTH_DATABASE;
+      if (dbString) {
+        inMemoryDB = JSON.parse(dbString);
+        return inMemoryDB;
+      }
+    } catch (e) {
+      console.warn('Could not parse AUTH_DATABASE env var:', e);
+    }
+    
+    // Initialize empty database
+    inMemoryDB = { users: [], passwords: [], generatedPasswordHistory: [] };
+    return inMemoryDB;
   }
+
+  // File system is available, use it
+  ensureDataDir();
+  try {
+    if (fs.existsSync(DB_PATH)) {
+      const data = fs.readFileSync(DB_PATH, 'utf-8');
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.warn('Could not read database file:', e);
+  }
+  
   return { users: [], passwords: [], generatedPasswordHistory: [] };
 }
 
-// Save database to file
+// Check if file system is accessible
+function canAccessFileSystem(): boolean {
+  try {
+    const testFile = path.join(process.cwd(), 'package.json');
+    return fs.existsSync(testFile);
+  } catch {
+    return false;
+  }
+}
+
+// Save database to file and/or environment
 function saveDatabase(db: AuthDatabase) {
-  ensureDataDir();
-  fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+  // Always keep in-memory copy
+  inMemoryDB = db;
+
+  // Try to save to file if on local
+  if (!isVercel && canAccessFileSystem()) {
+    try {
+      ensureDataDir();
+      fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+    } catch (e) {
+      console.warn('Could not save to file system:', e);
+    }
+  }
+
+  // Note: To persist on Vercel, set AUTH_DATABASE environment variable
+  // with JSON-stringified database. This is optional and mainly for admin reference.
 }
 
 // Initialize with admin user if not exists
@@ -197,6 +257,22 @@ export const AuthDB = {
     db.generatedPasswordHistory = [];
     saveDatabase(db);
   },
+
+  // Export database as JSON string (for environment variable backup)
+  exportAsJSON(): string {
+    const db = loadDatabase();
+    return JSON.stringify(db);
+  },
+
+  // Import database from JSON string
+  importFromJSON(jsonString: string): void {
+    try {
+      const db = JSON.parse(jsonString);
+      saveDatabase(db);
+    } catch (e) {
+      console.error('Failed to import database:', e);
+    }
+  }
 };
 
 // Initialize on module load
