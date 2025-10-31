@@ -37,31 +37,9 @@ export async function POST(request: NextRequest) {
 
     // Fallback: Check if it's admin login with environment credentials
     if (!user && emailNormalized === adminEmail.toLowerCase()) {
-      // Verify password
-      const isValid = await bcrypt.compare(password, await bcrypt.hash(adminPassword, 12));
-      if (!isValid && password === adminPassword) {
+      // Direct password match for admin (using environment credentials)
+      if (password === adminPassword) {
         // Generate JWT token for admin
-        const token = jwt.sign(
-          {
-            userId: 'admin-user-1',
-            email: adminEmail,
-            isAdmin: true
-          },
-          JWT_SECRET,
-          { expiresIn: '24h' }
-        );
-
-        return NextResponse.json({
-          success: true,
-          user: {
-            id: 'admin-user-1',
-            email: adminEmail,
-            isAdmin: true
-          },
-          token
-        });
-      } else if (password === adminPassword) {
-        // Direct password match (for simple password)
         const token = jwt.sign(
           {
             userId: 'admin-user-1',
