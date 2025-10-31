@@ -6,6 +6,7 @@ import { AuthDB } from '@/lib/auth-db';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+// Railway deployment fix
 
 export async function POST(request: NextRequest) {
   try {
