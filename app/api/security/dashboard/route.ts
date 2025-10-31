@@ -1,39 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { AuthDB } from '@/lib/auth-db'
 
 // Force dynamic rendering for this API route
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    // Skip database operations during build phase
-    if (process.env.NEXT_PHASE === 'phase-production-build') {
-      console.log('Skipping database operations during build phase for security dashboard');
-      const mockData = {
-        totalUsers: 1,
-        pendingUsers: 0,
-        failedLoginAttempts: 0,
-        securityEvents: 0,
-      };
-      return NextResponse.json({
-        success: true,
-        data: request.url.includes('type=overview') ? mockData :
-              request.url.includes('type=users') ? [] :
-              request.url.includes('type=login-attempts') ? [] :
-              request.url.includes('type=security-events') ? [] :
-              request.url.includes('type=system-logs') ? [] :
-              request.url.includes('type=failed-attempts') ? [] :
-              request.url.includes('type=suspicious-activity') ? [] : []
-      });
-    }
-
     const url = new URL(request.url)
     const type = url.searchParams.get('type') || 'overview'
 
     switch (type) {
       case 'overview':
         {
-          const users = await prisma.user.findMany()
+          const users = AuthDB.getAllUsers()
           const data = {
             totalUsers: users.length,
             pendingUsers: users.filter(u => u.status === 'PENDING').length,
@@ -45,7 +24,7 @@ export async function GET(request: NextRequest) {
 
       case 'users':
         {
-          const users = await prisma.user.findMany()
+          const users = AuthDB.getAllUsers()
           return NextResponse.json({ success: true, data: users })
         }
 

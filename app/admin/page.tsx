@@ -59,121 +59,56 @@ export default function AdminPage() {
   const [securityDashboard, setSecurityDashboard] = useState<any>(null)
   const [loginAttempts, setLoginAttempts] = useState<any[]>([])
   const [securityEvents, setSecurityEvents] = useState<any[]>([])
-  const [activeTab, setActiveTab] = useState<'users' | 'security' | 'passwords' | 'questions'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'security' | 'passwords' | 'questions' | 'generated-passwords'>('users')
   const [questions, setQuestions] = useState<any[]>([])
   const [passwordVisibility, setPasswordVisibility] = useState<{[email: string]: boolean}>({})
+  const [generatedPasswordHistory, setGeneratedPasswordHistory] = useState<any[]>([])
+  const [copiedPassword, setCopiedPassword] = useState<string | null>(null)
   const router = useRouter()
 
 
   useEffect(() => {
-    const verifyAuth = async () => {
-      if (typeof window === 'undefined') return
-
-      const token = localStorage.getItem("auth_token")
-      if (!token) {
-        router.push("/login")
-        return
-      }
-
+    // Get user from localStorage (set during login)
+    const userStr = localStorage.getItem("genera_user")
+    if (userStr) {
       try {
-        const response = await fetch('/api/auth/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token }),
-        })
-
-        const result = await response.json()
-        if (!result.success) {
-          localStorage.removeItem("auth_token")
-          localStorage.removeItem("genera_user")
-          router.push("/login")
-          return
-        }
-
-        if (!result.user.isAdmin) {
-          router.push("/dashboard")
-          return
-        }
-
-        console.log('Admin panel - Auth successful, setting user and admin status')
-        setCurrentUser(result.user)
-        setIsAdmin(true)
-      } catch (error) {
-        console.error('Auth verification failed:', error)
-        localStorage.removeItem("auth_token")
-        localStorage.removeItem("genera_user")
-        router.push("/login")
+        const user = JSON.parse(userStr)
+        setCurrentUser(user)
+        setIsAdmin(user.isAdmin === true)
+      } catch (e) {
+        console.error('Failed to parse user:', e)
       }
     }
-
-    verifyAuth()
-  }, [router])
-
-  useEffect(() => {
-    console.log('Admin panel - useEffect triggered, loading data...')
+    
+    // Middleware already verified auth, just load data
     loadUsers()
     loadPasswords()
     loadPasswordResetRequests()
-    checkStorageHealth()
     loadSecurityDashboard()
     loadLoginAttempts()
     loadSecurityEvents()
     loadQuestions()
+    loadPasswordHistory()
   }, [])
 
   const loadUsers = async () => {
     try {
-      console.log('Loading users from API...')
+      console.log('Loading users...')
       const token = localStorage.getItem('auth_token')
-      let response = await fetch('/api/users', {
+      const response = await fetch('/api/users/manage', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })
-      
-      // If token expired, try to refresh
-      if (response.status === 401) {
-        console.log('Token expired, refreshing...')
-        const newToken = await refreshToken()
-        if (newToken) {
-          response = await fetch('/api/users', {
-            headers: {
-              'Authorization': `Bearer ${newToken}`,
-              'Content-Type': 'application/json'
-            }
-          })
-        }
-      }
 
       const data = await response.json()
-      console.log('API Response:', data)
-      console.log('Response type:', typeof data)
-      console.log('Response keys:', data ? Object.keys(data) : 'null')
-
-      // Handle both direct array response and { users: [...] } response
-      let usersArray = []
-      if (Array.isArray(data)) {
-        usersArray = data
-        console.log('Response is direct array with', usersArray.length, 'users')
-      } else if (data && Array.isArray(data.users)) {
-        usersArray = data.users
-        console.log('Response has users array with', usersArray.length, 'users')
-      } else {
-        console.log('No users array in response, data:', data)
-        usersArray = []
+      if (data && Array.isArray(data.users)) {
+        setUsers(data.users)
+        console.log('Loaded', data.users.length, 'users')
       }
-
-      // Debug pending users specifically
-      const pendingUsers = usersArray.filter((user: any) => user.status === 'PENDING')
-      console.log('Pending users found:', pendingUsers.length)
-      console.log('Pending users:', pendingUsers.map((u: any) => ({ email: u.email, fullName: u.fullName, status: u.status })))
-
-      setUsers(usersArray)
-      console.log('Users loaded:', usersArray.length)
     } catch (error) {
       console.error('Error loading users:', error)
-      setUsers([])
     }
   }
 
@@ -370,6 +305,33 @@ export default function AdminPage() {
     } catch {}
   }
 
+  const loadPasswordHistory = async () => {
+    try {
+      const token = localStorage.getItem('auth_token')
+      if (!token) {
+        setGeneratedPasswordHistory([])
+        return
+      }
+
+      const response = await fetch('/api/users/manage?action=password-history', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+      if (data.success && Array.isArray(data.history)) {
+        setGeneratedPasswordHistory(data.history)
+      } else {
+        setGeneratedPasswordHistory([])
+      }
+    } catch (error) {
+      console.error('Error loading password history:', error)
+      setGeneratedPasswordHistory([])
+    }
+  }
+
   const generatePasswordForUser = async (email: string) => {
     try {
       console.log('Generating password for email:', email)
@@ -395,6 +357,7 @@ export default function AdminPage() {
         // Refresh all data after password generation
         loadUsers()
         loadPasswords()
+        loadPasswordHistory()
         alert(`Password generated for ${email}: ${result.password}`)
       } else {
         console.error('Error generating password:', result.error)
@@ -496,78 +459,32 @@ export default function AdminPage() {
 
   const approveUser = async (userId: string) => {
     try {
-      console.log('=== APPROVAL DEBUG START ===')
-      console.log('Approving user:', userId, 'by:', currentUser?.email, 'Type:', typeof userId)
-      console.log('Current user state:', currentUser)
-      console.log('Is admin state:', isAdmin)
-
       const token = localStorage.getItem('auth_token')
-      console.log('Token exists:', !!token)
-      console.log('Token preview:', token ? token.substring(0, 50) + '...' : 'null')
-      console.log('Token full length:', token ? token.length : 0)
-
       if (!token) {
-        console.error('No token found in localStorage')
-        alert('Authentication required - no token found')
+        alert('Authentication required')
         return
       }
 
-      if (!currentUser) {
-        console.error('Current user state is null')
-        alert('User session expired. Please refresh the page.')
-        return
-      }
-
-      console.log('Sending approval request with token...')
-
-      // Double-check token right before making request
-      const currentToken = localStorage.getItem('auth_token')
-      console.log('Token check right before fetch:', !!currentToken)
-      if (!currentToken) {
-        console.error('TOKEN LOST! Token was present earlier but now missing')
-        alert('Authentication token lost. Please refresh the page.')
-        return
-      }
-
-      console.log('Making fetch request to /api/users')
-      console.log('Request headers:', {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${currentToken ? currentToken.substring(0, 20) + '...' : 'MISSING'}`
-      })
-
-      const response = await fetch('/api/users', {
+      const response = await fetch('/api/users/manage', {
         method: 'POST',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${currentToken}`,
-          'x-auth-token': `${currentToken}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           action: 'approve',
-          userId,
-          approvedBy: currentUser?.email || 'admin'
+          userId
         })
       })
 
-      console.log('Fetch request completed, status:', response.status)
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()))
-
       const data = await response.json()
-      console.log('=== APPROVAL RESPONSE ===')
-      console.log('Response data:', data)
-      console.log('Response success:', data.success)
-      console.log('Response error:', data.error)
-
+      
       if (data.success) {
-        setUsers(data.users)
-        console.log('User approved successfully')
-        // Refresh all data after approval
+        alert(`✅ Usuario aprobado exitosamente!`)
         loadUsers()
-        loadPasswords()
+        loadPasswordHistory()
       } else {
-        console.error('Approval failed with error:', data.error)
-        alert('Error approving user: ' + data.error)
+        alert('Error: ' + data.error)
       }
     } catch (error) {
       console.error('Error approving user:', error)
@@ -789,6 +706,16 @@ export default function AdminPage() {
                 }`}
               >
                 Preguntas Usuarios
+              </button>
+              <button
+                onClick={() => setActiveTab('generated-passwords')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === 'generated-passwords'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Contraseñas Generadas
               </button>
             </div>
             <Button
@@ -1123,154 +1050,6 @@ export default function AdminPage() {
           </CardContent>
         </Card>
         )}
-        {/* Password generation card moved below user management per request */}
-        <div className="mt-8">
-          <Card className="bg-white shadow-lg border-0">
-            <CardHeader>
-              <CardTitle>Generación de Contraseñas</CardTitle>
-              <CardDescription>Genere nuevas contraseñas para usuarios</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2 mb-4">
-                <Button
-                  onClick={() => generatePasswordForUser('admin@genera.com')}
-                  className="bg-purple-600 hover:bg-purple-700"
-                >
-                  <Key className="w-4 h-4 mr-1" />
-                  Generar Contraseña Admin
-                </Button>
-              </div>
-
-              {generatedPassword && (
-                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded">
-                  <p className="font-semibold">Nueva contraseña generada para {generatedPassword.email}:</p>
-                  <p className="font-mono text-lg mt-2">{generatedPassword.password}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Security Monitoring Tab */}
-        {activeTab === 'security' && (
-        <div className="space-y-6">
-          {/* Security Overview */}
-          {securityDashboard && (
-            <Card className="bg-white shadow-lg border-0">
-              <CardHeader>
-                <CardTitle>Resumen de Seguridad</CardTitle>
-                <CardDescription>Métricas de seguridad en tiempo real</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <h3 className="text-2xl font-bold text-blue-600">{securityDashboard.totalUsers}</h3>
-                    <p className="text-sm text-blue-800">Total Usuarios</p>
-                  </div>
-                  <div className="bg-yellow-50 p-4 rounded-lg">
-                    <h3 className="text-2xl font-bold text-yellow-600">{securityDashboard.pendingUsers}</h3>
-                    <p className="text-sm text-yellow-800">Pendientes</p>
-                  </div>
-                  <div className="bg-red-50 p-4 rounded-lg">
-                    <h3 className="text-2xl font-bold text-red-600">{securityDashboard.failedLoginAttempts}</h3>
-                    <p className="text-sm text-red-800">Intentos Fallidos (24h)</p>
-                  </div>
-                  <div className="bg-orange-50 p-4 rounded-lg">
-                    <h3 className="text-2xl font-bold text-orange-600">{securityDashboard.securityEvents}</h3>
-                    <p className="text-sm text-orange-800">Eventos de Seguridad</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Recent Login Attempts */}
-          <Card className="bg-white shadow-lg border-0">
-            <CardHeader>
-              <CardTitle>Intentos de Inicio de Sesión Recientes</CardTitle>
-              <CardDescription>Últimos 20 intentos de autenticación</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loginAttempts && Array.isArray(loginAttempts) && loginAttempts.length > 0 ? (
-                <div className="space-y-2">
-                  {loginAttempts && Array.isArray(loginAttempts) && loginAttempts.map((attempt) => (
-                    <div key={attempt.id} className={`p-3 rounded-lg border ${
-                      attempt.success 
-                        ? 'bg-green-50 border-green-200' 
-                        : 'bg-red-50 border-red-200'
-                    }`}>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium">{attempt.email}</p>
-                          <p className="text-sm text-gray-600">
-                            {attempt.success ? 'Éxito' : `Fallido: ${attempt.failureReason}`}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            IP: {attempt.ipAddress} • {new Date(attempt.attemptedAt).toLocaleString()}
-                          </p>
-                        </div>
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          attempt.success 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {attempt.success ? 'Éxito' : 'Fallido'}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500 text-center py-4">No hay intentos de inicio de sesión registrados</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Security Events */}
-          <Card className="bg-white shadow-lg border-0">
-            <CardHeader>
-              <CardTitle>Eventos de Seguridad</CardTitle>
-              <CardDescription>Actividad de seguridad del sistema</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {securityEvents && Array.isArray(securityEvents) && securityEvents.length > 0 ? (
-                <div className="space-y-2">
-                  {securityEvents && Array.isArray(securityEvents) && securityEvents.map((event) => (
-                    <div key={event.id} className={`p-3 rounded-lg border ${
-                      event.level === 'critical' ? 'bg-red-50 border-red-200' :
-                      event.level === 'error' ? 'bg-red-50 border-red-200' :
-                      event.level === 'warning' ? 'bg-yellow-50 border-yellow-200' :
-                      'bg-blue-50 border-blue-200'
-                    }`}>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium">{event.message}</p>
-                          <p className="text-sm text-gray-600">
-                            {event.type} • {event.level}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {new Date(event.timestamp).toLocaleString()}
-                          </p>
-                        </div>
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          event.level === 'critical' ? 'bg-red-100 text-red-800' :
-                          event.level === 'error' ? 'bg-red-100 text-red-800' :
-                          event.level === 'warning' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}>
-                          {event.level}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500 text-center py-4">No hay eventos de seguridad registrados</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-        )}
 
         {/* Passwords Tab */}
         {activeTab === 'passwords' && (
@@ -1281,8 +1060,8 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             {/* Password reset requests */}
-            <div className="mb-6">
-              <h3 className="text-md font-semibold mb-2 text-gray-800">Solicitudes de Restablecimiento</h3>
+            <div className="mb-8">
+              <h3 className="text-md font-semibold mb-4 text-gray-800">Solicitudes de Restablecimiento</h3>
               {passwordResetRequests && Array.isArray(passwordResetRequests) && passwordResetRequests.length > 0 ? (
                 <div className="space-y-2">
                   {passwordResetRequests.map((req) => (
@@ -1300,57 +1079,106 @@ export default function AdminPage() {
               )}
             </div>
 
-            {passwords && Array.isArray(passwords) && passwords.length > 0 ? (
-              <div className="space-y-3">
-                {passwords && Array.isArray(passwords) && passwords.map((passwordInfo) => (
-                  <div key={passwordInfo.email} className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{passwordInfo.email}</p>
-                      <p className="text-sm text-gray-600">
-                        Generada: {passwordInfo.generatedAt ? new Date(passwordInfo.generatedAt as string).toLocaleString() : 'N/A'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm bg-white px-3 py-1 rounded border">
-                          {passwordVisibility[passwordInfo.email] 
-                            ? (passwordInfo.plainPassword || passwordInfo.password || 'Contraseña no disponible')
-                            : '••••••••'
-                          }
-                        </span>
-                        <Button
-                          onClick={() => togglePasswordVisibility(passwordInfo.email)}
-                          variant="outline"
-                          size="sm"
-                          className="p-2"
-                        >
-                          {passwordVisibility[passwordInfo.email] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
+            {/* User Password Cards */}
+            <div>
+              <h3 className="text-md font-semibold mb-4 text-gray-800">Contraseñas de Usuarios</h3>
+              {passwords && Array.isArray(passwords) && passwords.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {passwords && Array.isArray(passwords) && passwords.map((passwordInfo) => {
+                    // Find the corresponding user to get more details
+                    const user = users.find(u => u.email === passwordInfo.email)
+                    return (
+                      <div key={passwordInfo.email} className="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow">
+                        {/* User Header */}
+                        <div className="mb-4 pb-4 border-b border-purple-200">
+                          <h4 className="font-semibold text-gray-900 text-lg">{user?.fullName || 'Usuario'}</h4>
+                          <p className="text-sm text-gray-600">{passwordInfo.email}</p>
+                        </div>
+
+                        {/* Password Status Badge */}
+                        <div className="mb-4">
+                          {passwordInfo.status === 'pending_approval' && (
+                            <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
+                              Pendiente de Aprobación
+                            </Badge>
+                          )}
+                          {passwordInfo.status === 'active' && (
+                            <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                              Activa
+                            </Badge>
+                          )}
+                        </div>
+
+                        {/* Password Display */}
+                        <div className="mb-4">
+                          <label className="text-xs font-medium text-gray-600 mb-2 block">Contraseña</label>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 bg-white border border-gray-300 rounded px-3 py-2">
+                              <span className="font-mono text-sm">
+                                {passwordVisibility[passwordInfo.email] 
+                                  ? (passwordInfo.plainPassword || passwordInfo.password || '••••••••')
+                                  : '••••••••'
+                                }
+                              </span>
+                            </div>
+                            <Button
+                              onClick={() => togglePasswordVisibility(passwordInfo.email)}
+                              variant="outline"
+                              size="sm"
+                              className="p-2 h-10 w-10"
+                              title={passwordVisibility[passwordInfo.email] ? "Ocultar" : "Mostrar"}
+                            >
+                              {passwordVisibility[passwordInfo.email] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Password Info */}
+                        <div className="mb-4 text-xs text-gray-600 space-y-1">
+                          <p>Generada: {passwordInfo.generatedAt ? new Date(passwordInfo.generatedAt as string).toLocaleString() : 'N/A'}</p>
+                          {passwordInfo.approvedAt && <p>Aprobada por: {passwordInfo.approvedBy}</p>}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-2 flex-wrap">
+                          <Button 
+                            onClick={() => {
+                              const passwordToCopy = passwordVisibility[passwordInfo.email] 
+                                ? (passwordInfo.plainPassword || passwordInfo.password || '')
+                                : (passwordInfo.plainPassword || passwordInfo.password || '')
+                              if (passwordToCopy) {
+                                navigator.clipboard.writeText(passwordToCopy)
+                                setCopiedPassword(passwordInfo.email)
+                                setTimeout(() => setCopiedPassword(null), 2000)
+                              }
+                            }} 
+                            variant="outline" 
+                            size="sm"
+                            className="flex-1 text-purple-600 hover:bg-purple-100 border-purple-300"
+                          >
+                            {copiedPassword === passwordInfo.email ? '✓ Copiado' : 'Copiar'}
+                          </Button>
+                          <Button 
+                            onClick={() => resetPassword(passwordInfo.email)} 
+                            variant="outline" 
+                            size="sm"
+                            className="flex-1 text-blue-600 hover:bg-blue-100 border-blue-300"
+                          >
+                            <RotateCcw className="h-4 w-4 mr-1" />
+                            Generar Nueva
+                          </Button>
+                        </div>
                       </div>
-                      <Button 
-                        onClick={() => resetPassword(passwordInfo.email)} 
-                        variant="outline" 
-                        size="sm"
-                        className="text-blue-600 hover:bg-blue-50"
-                      >
-                        <RotateCcw className="h-4 w-4 mr-1" />
-                        Reset
-                      </Button>
-                      <Button 
-                        onClick={() => deletePassword(passwordInfo.email)} 
-                        variant="outline" 
-                        size="sm"
-                        className="text-red-600 hover:bg-red-50"
-                      >
-                        Eliminar
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-center py-8">No hay contraseñas generadas</p>
-            )}
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Key className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500">No hay contraseñas generadas</p>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
         )}
@@ -1383,6 +1211,47 @@ export default function AdminPage() {
             )}
           </CardContent>
         </Card>
+        )}
+
+        {/* Generated Passwords Tab */}
+        {activeTab === 'generated-passwords' && (
+          <Card className="bg-white shadow-lg border-0">
+            <CardHeader>
+              <CardTitle>Contraseñas Generadas Recientemente</CardTitle>
+              <CardDescription>Lista de contraseñas generadas para usuarios</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {generatedPasswordHistory && Array.isArray(generatedPasswordHistory) && generatedPasswordHistory.length > 0 ? (
+                <div className="space-y-3">
+                  {generatedPasswordHistory.map((pass) => (
+                    <div key={pass.id} className="flex items-center justify-between p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">{pass.email}</p>
+                        <p className="text-sm text-gray-600">
+                          Contraseña: <span className="font-mono text-sm bg-white px-2 py-1 rounded border">{pass.password}</span>
+                        </p>
+                        <p className="text-xs text-gray-500">Generada: {new Date(pass.generatedAt).toLocaleString()}</p>
+                      </div>
+                      <Button
+                        onClick={() => {
+                          setCopiedPassword(pass.password);
+                          navigator.clipboard.writeText(pass.password);
+                          setTimeout(() => setCopiedPassword(null), 2000);
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="text-purple-600 hover:bg-purple-50"
+                      >
+                        {copiedPassword === pass.password ? 'Copiado!' : 'Copiar'}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-4">No hay contraseñas generadas recientemente</p>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         <NavigationButtons previousPage={{ href: "/dashboard", label: "Dashboard" }} />

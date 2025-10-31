@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import jwt from 'jsonwebtoken';
-import { JWT_SECRET } from '@/lib/auth';
+import bcrypt from 'bcryptjs';
+import { JWT_SECRET, generateSecurePassword } from '@/lib/auth';
 
 // Force dynamic rendering - CRITICAL: Must be 'force-dynamic' for JWT verification
 export const dynamic = 'force-dynamic';
@@ -226,23 +227,57 @@ export async function POST(request: NextRequest) {
     let updatedUser;
     switch (action) {
       case 'approve':
-        updatedUser = await prisma.user.update({
-          where: { id: userId as string },
-          data: {
-            status: 'APPROVED',
-            isActive: true,
-            approvedBy: actor,
-            approvedAt: currentTimestamp,
-            rejectedBy: null,
-            rejectedAt: null,
-            blockedBy: null,
-            blockedAt: null,
-            unblockedBy: null,
-            unblockedAt: null,
-            deletedBy: null,
-            deletedAt: null,
-          }
+        // Generate secure password and hash it
+        const plainPassword = generateSecurePassword(12);
+        const passwordHash = await bcrypt.hash(plainPassword, 12);
+        
+        // Use transaction to ensure both user update and password creation succeed
+        const result = await prisma.$transaction(async (tx) => {
+          // Update user status and store password hash
+          const updatedUser = await tx.user.update({
+            where: { id: userId as string },
+            data: {
+              status: 'APPROVED',
+              isActive: true,
+              passwordHash: passwordHash,
+              approvedBy: actor,
+              approvedAt: currentTimestamp,
+              rejectedBy: null,
+              rejectedAt: null,
+              blockedBy: null,
+              blockedAt: null,
+              unblockedBy: null,
+              unblockedAt: null,
+              deletedBy: null,
+              deletedAt: null,
+            }
+          });
+
+          // Store plain password for admin reference
+          await tx.password.upsert({
+            where: { email: user.email },
+            update: {
+              plainPassword: plainPassword,
+              generatedAt: currentTimestamp,
+              approvedAt: currentTimestamp,
+              approvedBy: actor,
+              revokedAt: null,
+              revokedBy: null,
+            },
+            create: {
+              id: `pwd-${Date.now()}`,
+              email: user.email,
+              plainPassword: plainPassword,
+              generatedAt: currentTimestamp,
+              approvedAt: currentTimestamp,
+              approvedBy: actor,
+            }
+          });
+
+          return updatedUser;
         });
+        
+        updatedUser = result;
         break;
       case 'reject':
         updatedUser = await prisma.user.update({

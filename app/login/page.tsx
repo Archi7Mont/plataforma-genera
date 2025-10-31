@@ -1,42 +1,20 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useRef } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useState, useRef, FormEvent } from "react"
 import { useRouter } from "next/navigation"
-import { NavigationButtons } from "@/components/navigation-buttons"
-import ReCAPTCHA from "react-google-recaptcha"
-import { generateAndSavePassword } from "@/lib/passwordStorage"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [captchaVerified, setCaptchaVerified] = useState(false)
   const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
-  const recaptchaRef = useRef<ReCAPTCHA>(null)
 
-  const handleCaptchaChange = (value: string | null) => {
-    setCaptchaVerified(!!value)
-  }
-
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault()
     setError("")
-
-    const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    const captchaOk = captchaVerified || isLocalhost
-
-    if (!captchaOk) {
-      setError("Por favor complete la verificación reCAPTCHA")
-      return
-    }
+    setSuccess("")
 
     if (!email || !password) {
       setError("Por favor complete todos los campos")
@@ -46,233 +24,248 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      // Verify reCAPTCHA token with server (skip on localhost)
-      const recaptchaToken = recaptchaRef.current?.getValue()
-      
-      if (!recaptchaToken && !isLocalhost) {
-        setError("Error de verificación reCAPTCHA")
-        setIsLoading(false)
-        return
-      }
-
-      // Verify reCAPTCHA token with backend
-      if (!isLocalhost) {
-        const verifyResponse = await fetch('/api/verify-recaptcha', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ token: recaptchaToken }),
-        })
-
-        let verifyResult: any = null
-        try {
-          verifyResult = await verifyResponse.json()
-        } catch (err) {
-          // If parsing fails in non-localhost, treat as failure
-          setError("Verificación reCAPTCHA fallida. Intente nuevamente.")
-          setIsLoading(false)
-          return
-        }
-        
-        if (!verifyResult?.success) {
-          setError("Verificación reCAPTCHA fallida. Intente nuevamente.")
-          setIsLoading(false)
-          return
-        }
-      }
-
-      // Log the verification result for debugging
-      if (!isLocalhost) {
-        console.log('reCAPTCHA verification result: OK')
-      } else {
-        console.log('reCAPTCHA verification bypass: localhost')
-      }
-
-      // Get user data for the API call (client-side only)
-      const allUsers = typeof window !== 'undefined' ? localStorage.getItem("genera_all_users") : null
-      const users = allUsers ? JSON.parse(allUsers) : []
-
-      // Collect client-stored password hashes for dev-only validation
-      const hashesRaw = typeof window !== 'undefined' ? localStorage.getItem('genera_password_hashes') : null
-      const passwordHashes = hashesRaw ? JSON.parse(hashesRaw) : []
-
-      // Call server-side authentication
-      const loginResponse = await fetch('/api/auth/login', {
-        method: 'POST',
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'x-users-data': JSON.stringify(users),
-          'x-password-hashes': JSON.stringify(passwordHashes)
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ email, password }),
       })
 
-      const loginResult = await loginResponse.json()
+      const data = await response.json()
 
-      if (!loginResult.success) {
-        setError(loginResult.error || "Error de autenticación")
+      if (!data.success) {
+        setError(data.error || "Error de autenticación")
         setIsLoading(false)
         return
       }
 
-      // Store token and user data (client-side only)
-      if (typeof window !== 'undefined') {
-        // Store in localStorage for client-side access
-        localStorage.setItem("auth_token", loginResult.token)
-        localStorage.setItem("genera_user", JSON.stringify(loginResult.user))
-
-        // Set token in cookie for middleware access
-        const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:'
-        const secureAttr = isHttps ? '; Secure' : ''
-        document.cookie = `auth-token=${loginResult.token}; path=/; max-age=${60 * 60 * 24}; SameSite=Strict${secureAttr}`
-
-        // Update user list if needed
-        const userExists = users.find((u: any) => u.email === email)
-        if (!userExists) {
-          users.push({
-            id: loginResult.user.id,
-            email: loginResult.user.email,
-            status: loginResult.user.status,
-            loginTime: new Date().toISOString(),
-          })
-          localStorage.setItem("genera_all_users", JSON.stringify(users))
-        }
+      // Store token and user data
+      if (typeof window !== "undefined") {
+        localStorage.setItem("auth_token", data.token)
+        localStorage.setItem("genera_user", JSON.stringify(data.user))
+        
+        // Set cookie
+        const isHttps = window.location.protocol === "https:"
+        const secureAttr = isHttps ? "; Secure" : ""
+        document.cookie = `auth-token=${data.token}; path=/; max-age=${60 * 60 * 24}; SameSite=Strict${secureAttr}`
       }
 
-      router.push("/dashboard")
-      setIsLoading(false)
+      setSuccess("Inicio de sesión exitoso. Redirigiendo...")
+      setTimeout(() => {
+        router.push("/dashboard")
+      }, 500)
     } catch (error) {
-      if (!isLocalhost) {
-        setError("Error en la verificación. Intente nuevamente.")
-        setIsLoading(false)
-      } else {
-        // On localhost, proceed despite verification errors
-        try {
-          const allUsers = typeof window !== 'undefined' ? localStorage.getItem("genera_all_users") : null
-          const users = allUsers ? JSON.parse(allUsers) : []
-          const loginResponse = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-users-data': JSON.stringify(users),
-              'x-password-hashes': JSON.stringify([])
-            },
-            body: JSON.stringify({ email, password }),
-          })
-          const loginResult = await loginResponse.json()
-          if (!loginResult.success) {
-            setError(loginResult.error || "Error de autenticación")
-            setIsLoading(false)
-            return
-          }
-          if (typeof window !== 'undefined') {
-            localStorage.setItem("auth_token", loginResult.token)
-            localStorage.setItem("genera_user", JSON.stringify(loginResult.user))
-            const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:'
-            const secureAttr = isHttps ? '; Secure' : ''
-            document.cookie = `auth-token=${loginResult.token}; path=/; max-age=${60 * 60 * 24}; SameSite=Strict${secureAttr}`
-          }
-          router.push("/dashboard")
-          setIsLoading(false)
-        } catch (e) {
-          setError("No se pudo completar el inicio de sesión.")
-          setIsLoading(false)
-        }
-      }
+      setError("Error en la verificación. Intente nuevamente.")
+      setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Card className="shadow-xl border-0 bg-white">
-          <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-purple-700 bg-clip-text text-transparent mb-2">
-              Géner.A
-            </CardTitle>
-            <div className="w-16 h-1 bg-gradient-to-r from-purple-600 to-purple-700 mx-auto mb-4 rounded-full"></div>
-            <CardDescription className="text-gray-600">
-              Ingrese sus credenciales para acceder al sistema
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Correo electrónico</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="usuario@ejemplo.com"
-                  required
-                />
-              </div>
+    <div style={styles.container}>
+      <div style={styles.card}>
+        <div style={styles.header}>
+          <h1 style={styles.title}>Géner.A</h1>
+          <div style={styles.divider}></div>
+          <p style={styles.subtitle}>Ingrese sus credenciales para acceder al sistema</p>
+        </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Contraseña</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
+        <form onSubmit={handleLogin} style={styles.form}>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Correo electrónico</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="usuario@ejemplo.com"
+              style={styles.input}
+              disabled={isLoading}
+            />
+          </div>
 
-              <div className="space-y-2">
-                <Label>Verificación de seguridad</Label>
-                <ReCAPTCHA
-                  ref={recaptchaRef}
-                  sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"}
-                  onChange={handleCaptchaChange}
-                  theme="light"
-                  size="normal"
-                />
-              </div>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Contraseña</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              style={styles.input}
+              disabled={isLoading}
+            />
+          </div>
 
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              <Button
-                type="submit"
-                className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
-                disabled={isLoading || !captchaVerified}
-              >
-                {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
-              </Button>
-            </form>
-            
-            <div className="mt-6 text-center space-y-2">
-              <p className="text-sm text-gray-600">
-                ¿Olvidó su contraseña?{" "}
-                <a
-                  href="/forgot-password"
-                  className="text-purple-600 hover:text-purple-700 font-medium underline"
-                >
-                  Solicitar nueva contraseña
-                </a>
-              </p>
-              <p className="text-sm text-gray-600">
-                ¿No tiene una cuenta?{" "}
-                <a
-                  href="/register"
-                  className="text-purple-600 hover:text-purple-700 font-medium underline"
-                >
-                  Solicitar acceso
-                </a>
-              </p>
+          {error && (
+            <div style={styles.errorBox}>
+              <p style={styles.errorText}>{error}</p>
             </div>
-          </CardContent>
-        </Card>
+          )}
 
-        <NavigationButtons previousPage={{ href: "/", label: "Página Principal" }} showHome={false} />
+          {success && (
+            <div style={styles.successBox}>
+              <p style={styles.successText}>{success}</p>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            style={{
+              ...styles.button,
+              opacity: isLoading ? 0.6 : 1,
+              cursor: isLoading ? "not-allowed" : "pointer",
+            }}
+            disabled={isLoading}
+          >
+            {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
+          </button>
+        </form>
+
+        <div style={styles.footer}>
+          <p style={styles.footerText}>
+            ¿Olvidó su contraseña?{" "}
+            <a href="/forgot-password" style={styles.link}>
+              Solicitar nueva contraseña
+            </a>
+          </p>
+          <p style={styles.footerText}>
+            ¿No tiene una cuenta?{" "}
+            <a href="/register" style={styles.link}>
+              Solicitar acceso
+            </a>
+          </p>
+        </div>
       </div>
+
+      <a href="/" style={styles.homeButton}>
+        ← Página Principal
+      </a>
     </div>
   )
+}
+
+const styles = {
+  container: {
+    minHeight: "100vh",
+    background: "linear-gradient(to bottom right, #f0f9ff, #f3e8ff)",
+    display: "flex",
+    flexDirection: "column" as const,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "1rem",
+  },
+  card: {
+    width: "100%",
+    maxWidth: "28rem",
+    background: "white",
+    borderRadius: "0.75rem",
+    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+    border: "none",
+    overflow: "hidden",
+  },
+  header: {
+    textAlign: "center" as const,
+    padding: "2rem",
+    borderBottom: "1px solid #f0f0f0",
+  },
+  title: {
+    fontSize: "1.875rem",
+    fontWeight: "bold",
+    background: "linear-gradient(to right, #a855f7, #9333ea)",
+    backgroundClip: "text",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    marginBottom: "1rem",
+  },
+  divider: {
+    width: "4rem",
+    height: "0.25rem",
+    background: "linear-gradient(to right, #a855f7, #9333ea)",
+    margin: "0 auto 1rem",
+    borderRadius: "9999px",
+  },
+  subtitle: {
+    color: "#4b5563",
+    fontSize: "0.875rem",
+  },
+  form: {
+    padding: "2rem",
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "1rem",
+  },
+  formGroup: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "0.5rem",
+  },
+  label: {
+    fontSize: "0.875rem",
+    fontWeight: "500",
+    color: "#1f2937",
+  },
+  input: {
+    padding: "0.75rem",
+    border: "1px solid #d1d5db",
+    borderRadius: "0.375rem",
+    fontSize: "1rem",
+    fontFamily: "inherit",
+    transition: "all 0.2s",
+  },
+  errorBox: {
+    padding: "0.75rem",
+    background: "#fee2e2",
+    border: "1px solid #fecaca",
+    borderRadius: "0.375rem",
+  },
+  errorText: {
+    color: "#991b1b",
+    fontSize: "0.875rem",
+    margin: 0,
+  },
+  successBox: {
+    padding: "0.75rem",
+    background: "#dcfce7",
+    border: "1px solid #86efac",
+    borderRadius: "0.375rem",
+  },
+  successText: {
+    color: "#15803d",
+    fontSize: "0.875rem",
+    margin: 0,
+  },
+  button: {
+    padding: "0.75rem",
+    background: "linear-gradient(to right, #a855f7, #9333ea)",
+    color: "white",
+    border: "none",
+    borderRadius: "0.75rem",
+    fontSize: "1rem",
+    fontWeight: "600",
+    cursor: "pointer",
+    transition: "all 0.2s",
+  },
+  footer: {
+    padding: "1.5rem 2rem",
+    textAlign: "center" as const,
+    borderTop: "1px solid #f0f0f0",
+  },
+  footerText: {
+    fontSize: "0.875rem",
+    color: "#4b5563",
+    margin: "0.5rem 0",
+  },
+  link: {
+    color: "#a855f7",
+    textDecoration: "underline",
+    cursor: "pointer",
+  },
+  homeButton: {
+    marginTop: "1.5rem",
+    padding: "0.5rem 1rem",
+    border: "1px solid #d1d5db",
+    borderRadius: "0.375rem",
+    textDecoration: "none",
+    color: "#4b5563",
+    transition: "all 0.2s",
+  },
 }
